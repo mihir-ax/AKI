@@ -128,6 +128,11 @@ def is_valid_text(text):
     if re.search(r"(https?://|t\.me|telegram\.me|@)", text):
         return False
     
+    # 2. [NEW] Bot ke apne phrases block karo taaki loop na bane
+    bot_phrases = ["No results found", "Search Results", "Show results for", "Try different keywords"]
+    if any(phrase.lower() in text.lower() for phrase in bot_phrases):
+        return False
+    
     # 2. Hindi, English, Numbers aur Emojis allow karne ke liye
     # Hindi Range: \u0900-\u097F
     # Emoji Range: \U00010000-\U0010ffff
