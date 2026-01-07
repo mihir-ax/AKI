@@ -3,7 +3,7 @@
 import asyncio
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from pyrogram.errors import FloodWait
@@ -56,6 +56,7 @@ async def bulk_index_handler(client: Client, message: Message):
     INDEXING_ACTIVE = True
     
     start_time = time.time()
+    start_datetime = datetime.now()
     status_msg = await message.reply_text("⚡ **Starting Lightning Indexer...**\n\n📊 Initializing data processing...")
     
     total_fetched = 0
@@ -63,6 +64,10 @@ async def bulk_index_handler(client: Client, message: Message):
     duplicate_count = 0
     unsupported_count = 0
     current_id = s_id
+    
+    # Store initial time for ETA calculation
+    last_eta_update_time = start_time
+    last_eta_processed = 0
     
     try:
         while current_id <= e_id and INDEXING_ACTIVE:
@@ -122,23 +127,66 @@ async def bulk_index_handler(client: Client, message: Message):
                 if bulk_ops:
                     await movies.bulk_write(bulk_ops)
                 
+                # Calculate ETA every 1000 messages or at the end
+                current_time = time.time()
+                elapsed_time = current_time - start_time
+                
+                # Update ETA calculation more frequently for better accuracy
+                eta_update_interval = 500  # Update ETA every 500 messages
+                if (total_fetched % eta_update_interval == 0) or (current_id + 200 > e_id):
+                    # Calculate processing speed (messages per second)
+                    if elapsed_time > 0:
+                        processing_speed = total_fetched / elapsed_time
+                        
+                        # Calculate remaining messages
+                        total_messages = e_id - s_id + 1
+                        processed_messages = current_id - s_id
+                        remaining_messages = total_messages - processed_messages
+                        
+                        # Calculate ETA in seconds
+                        if processing_speed > 0:
+                            eta_seconds = remaining_messages / processing_speed
+                            
+                            # Format ETA
+                            if eta_seconds < 60:
+                                eta_str = f"{eta_seconds:.0f} seconds"
+                            elif eta_seconds < 3600:
+                                eta_minutes = eta_seconds / 60
+                                eta_str = f"{eta_minutes:.1f} minutes"
+                            elif eta_seconds < 86400:
+                                eta_hours = eta_seconds / 3600
+                                eta_str = f"{eta_hours:.1f} hours"
+                            else:
+                                eta_days = eta_seconds / 86400
+                                eta_str = f"{eta_days:.1f} days"
+                            
+                            # Calculate predicted completion datetime
+                            predicted_completion = datetime.now() + timedelta(seconds=eta_seconds)
+                            predicted_str = predicted_completion.strftime("%d %b %Y, %I:%M %p")
+                        else:
+                            eta_str = "Calculating..."
+                            predicted_str = "Calculating..."
+                    else:
+                        processing_speed = 0
+                        eta_str = "Calculating..."
+                        predicted_str = "Calculating..."
+                
                 # Progress update display
                 if (total_fetched % 1000 == 0) or (current_id + 200 > e_id):
-                    current_time = time.time()
-                    elapsed_time = current_time - start_time
                     elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                     
-                    overall_speed = total_fetched / elapsed_time if elapsed_time > 0 else 0
-                    now = datetime.now().strftime("%d %b %Y, %I:%M %p")
+                    # Get current datetime
+                    now = datetime.now()
+                    current_datetime_str = now.strftime("%d %b %Y, %I:%M %p")
                     
                     # Calculate progress percentage
                     total_range = e_id - s_id + 1
-                    progress_percent = (current_id - s_id) / total_range * 100 if total_range > 0 else 0
+                    progress_percent = min(100, (current_id - s_id) / total_range * 100) if total_range > 0 else 0
                     
                     # Format the progress message
                     progress_text = f"""
 **⚡ 𝐋𝐈𝐆𝐇𝐓𝐍𝐈𝐍𝐆 𝐈𝐍𝐃𝐄𝐗𝐄𝐑 | 𝐈𝐍 𝐏𝐑𝐎𝐆𝐑𝐄𝐒𝐒**
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 **𝐏𝐫𝐨𝐜𝐞𝐬𝐬𝐢𝐧𝐠 𝐒𝐭𝐚𝐭𝐮𝐬**
 ├ 📍 **𝐂𝐮𝐫𝐫𝐞𝐧𝐭 𝐌𝐞𝐬𝐬𝐚𝐠𝐞 𝐈𝐃:** `{current_id}`
@@ -152,14 +200,18 @@ async def bulk_index_handler(client: Client, message: Message):
 ├ 🔢 **𝐑𝐚𝐧𝐠𝐞:** `{s_id} - {e_id}`
 └ 🎯 **𝐑𝐞𝐦𝐚𝐢𝐧𝐢𝐧𝐠:** `{max(0, e_id - current_id):,}`
 
-━━━━━━━━━━━━━━━━━━━━━━
-📊 **𝐏𝐞𝐫𝐟𝐨𝐫𝐦𝐚𝐧𝐜𝐞 𝐌𝐞𝐭𝐫𝐢𝐜𝐬**
-├ ⚡ **𝐏𝐫𝐨𝐜𝐞𝐬𝐬𝐢𝐧𝐠 𝐒𝐩𝐞𝐞𝐝:** `{overall_speed:.2f} msgs/sec`
+⏰ **𝐓𝐈𝐌𝐄 𝐈𝐍𝐅𝐎𝐑𝐌𝐀𝐓𝐈𝐎𝐍**
+├ 🕒 **𝐒𝐭𝐚𝐫𝐭 𝐓𝐢𝐦𝐞:** `{start_datetime.strftime('%d %b %Y, %I:%M %p')}`
+├ 📅 **𝐂𝐮𝐫𝐫𝐞𝐧𝐭 𝐓𝐢𝐦𝐞:** `{current_datetime_str}`
 ├ ⏱️ **𝐄𝐥𝐚𝐩𝐬𝐞𝐝 𝐓𝐢𝐦𝐞:** `{elapsed_str}`
-└ 🕒 **𝐋𝐚𝐬𝐭 𝐔𝐩𝐝𝐚𝐭𝐞:** `{now}`
-━━━━━━━━━━━━━━━━━━━━━━
+├ 🔮 **𝐄𝐬𝐭𝐢𝐦𝐚𝐭𝐞𝐝 𝐓𝐢𝐦𝐞 𝐋𝐞𝐟𝐭:** `{eta_str}`
+└ 🎯 **𝐏𝐫𝐞𝐝𝐢𝐜𝐭𝐞𝐝 𝐂𝐨𝐦𝐩𝐥𝐞𝐭𝐢𝐨𝐧:** `{predicted_str}`
 
-🔧 **𝐂𝐨𝐧𝐭𝐫𝐨𝐥𝐬:** `/cancel` to stop indexing
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 **𝐏𝐞𝐫𝐟𝐨𝐫𝐦𝐚𝐧𝐜𝐞 𝐌𝐞𝐭𝐫𝐢𝐜𝐬**
+├ ⚡ **𝐏𝐫𝐨𝐜𝐞𝐬𝐬𝐢𝐧𝐠 𝐒𝐩𝐞𝐞𝐝:** `{processing_speed:.2f} msgs/sec`
+└ 🔧 **𝐂𝐨𝐧𝐭𝐫𝐨𝐥𝐬:** `/cancel` to stop indexing
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
                     try:
                         await status_msg.edit_text(progress_text)
@@ -178,6 +230,7 @@ async def bulk_index_handler(client: Client, message: Message):
         if not INDEXING_ACTIVE:
             end_time = time.time()
             total_time = end_time - start_time
+            end_datetime = datetime.now()
             
             # Format total time
             if total_time < 60:
@@ -194,7 +247,7 @@ async def bulk_index_handler(client: Client, message: Message):
             
             cancel_message = f"""
 **⏹️ 𝐈𝐍𝐃𝐄𝐗𝐈𝐍𝐆 𝐂𝐀𝐍𝐂𝐄𝐋𝐋𝐄𝐃 𝐁𝐘 𝐔𝐒𝐄𝐑**
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 **𝐏𝐀𝐑𝐓𝐈𝐀𝐋 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐂𝐒**
 ├ 📍 **𝐋𝐚𝐬𝐭 𝐌𝐞𝐬𝐬𝐚𝐠𝐞 𝐈𝐃:** `{current_id}`
@@ -203,9 +256,13 @@ async def bulk_index_handler(client: Client, message: Message):
 ├ 🔄 **𝐃𝐮𝐩𝐥𝐢𝐜𝐚𝐭𝐞𝐬 𝐒𝐤𝐢𝐩𝐩𝐞𝐝:** `{duplicate_count:,}`
 └ ❌ **𝐔𝐧𝐬𝐮𝐩𝐩𝐨𝐫𝐭𝐞𝐝 𝐌𝐞𝐝𝐢𝐚:** `{unsupported_count:,}`
 
-⏱️ **𝐓𝐨𝐭𝐚𝐥 𝐓𝐢𝐦𝐞 𝐓𝐚𝐤𝐞𝐧:** `{time_str}`
+⏰ **𝐓𝐈𝐌𝐄 𝐈𝐍𝐅𝐎𝐑𝐌𝐀𝐓𝐈𝐎𝐍**
+├ 🕒 **𝐒𝐭𝐚𝐫𝐭 𝐓𝐢𝐦𝐞:** `{start_datetime.strftime('%d %b %Y, %I:%M %p')}`
+├ ⏹️ **𝐒𝐭𝐨𝐩 𝐓𝐢𝐦𝐞:** `{end_datetime.strftime('%d %b %Y, %I:%M %p')}`
+├ ⏱️ **𝐓𝐨𝐭𝐚𝐥 𝐓𝐢𝐦𝐞 𝐓𝐚𝐤𝐞𝐧:** `{time_str}`
+└ ⏳ **𝐃𝐮𝐫𝐚𝐭𝐢𝐨𝐧:** `{str(end_datetime - start_datetime).split('.')[0]}`
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ℹ️ **Indexing stopped by user command.**
 """
             await status_msg.edit_text(cancel_message)
@@ -214,6 +271,7 @@ async def bulk_index_handler(client: Client, message: Message):
         # Final completion report
         end_time = time.time()
         total_time = end_time - start_time
+        end_datetime = datetime.now()
         
         # Format total time
         if total_time < 60:
@@ -237,7 +295,7 @@ async def bulk_index_handler(client: Client, message: Message):
         
         final_message = f"""
 **🏁 𝐈𝐍𝐃𝐄𝐗𝐈𝐍𝐆 𝐂𝐎𝐌𝐏𝐋𝐄𝐓𝐄𝐃 𝐒𝐔𝐂𝐂𝐄𝐒𝐒𝐅𝐔𝐋𝐋𝐘!**
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 **𝐅𝐈𝐍𝐀𝐋 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐂𝐒**
 ├ 📥 **𝐓𝐨𝐭𝐚𝐥 𝐌𝐞𝐬𝐬𝐚𝐠𝐞𝐬 𝐒𝐜𝐚𝐧𝐧𝐞𝐝:** `{total_fetched:,}`
@@ -245,12 +303,17 @@ async def bulk_index_handler(client: Client, message: Message):
 ├ 🔄 **𝐃𝐮𝐩𝐥𝐢𝐜𝐚𝐭𝐞𝐬 𝐒𝐤𝐢𝐩𝐩𝐞𝐝:** `{duplicate_count:,}`
 └ ❌ **𝐔𝐧𝐬𝐮𝐩𝐩𝐨𝐫𝐭𝐞𝐝 𝐌𝐞𝐝𝐢𝐚:** `{unsupported_count:,}`
 
+⏰ **𝐓𝐈𝐌𝐄 𝐈𝐍𝐅𝐎𝐑𝐌𝐀𝐓𝐈𝐎𝐍**
+├ 🕒 **𝐒𝐭𝐚𝐫𝐭 𝐓𝐢𝐦𝐞:** `{start_datetime.strftime('%d %b %Y, %I:%M %p')}`
+├ 🏁 **𝐄𝐧𝐝 𝐓𝐢𝐦𝐞:** `{end_datetime.strftime('%d %b %Y, %I:%M %p')}`
+├ ⏱️ **𝐓𝐨𝐭𝐚𝐥 𝐓𝐢𝐦𝐞 𝐓𝐚𝐤𝐞𝐧:** `{time_str}`
+└ ⏳ **𝐃𝐮𝐫𝐚𝐭𝐢𝐨𝐧:** `{str(end_datetime - start_datetime).split('.')[0]}`
+
 📈 **𝐏𝐄𝐑𝐅𝐎𝐑𝐌𝐀𝐍𝐂𝐄 𝐑𝐄𝐏𝐎𝐑𝐓**
 ├ 🎯 **𝐒𝐮𝐜𝐜𝐞𝐬𝐬 𝐑𝐚𝐭𝐞:** `{success_rate:.2f}%`
-├ ⏱️ **𝐓𝐨𝐭𝐚𝐥 𝐓𝐢𝐦𝐞 𝐓𝐚𝐤𝐞𝐧:** `{time_str}`
 ├ ⚡ **𝐀𝐯𝐞𝐫𝐚𝐠𝐞 𝐒𝐩𝐞𝐞𝐝:** `{speed:.2f} msgs/sec`
 └ 📅 **𝐂𝐨𝐦𝐩𝐥𝐞𝐭𝐞𝐝 𝐎𝐧:** `{final_now}`
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✨ **Database has been successfully updated!**
 """
