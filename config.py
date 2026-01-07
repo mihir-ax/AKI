@@ -18,8 +18,9 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", " ")
 
 # Admin Settings
 ADMINS = [int(id) for id in os.getenv("ADMINS", " ").split(",")]
-FSUB_CHANNEL = os.getenv("FSUB_CHANNEL", " ")
 FSUB_LINK =  os.getenv("FSUB_LINK", " ")
+FSUB_CHANNEL = os.getenv("FSUB_CHANNEL", " ")
+FSUB_ENABLED = False
 
 # Shortener API
 SHORTENER_API_URL = "http://shortxlinks.com/api/v1/shorten"

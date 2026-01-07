@@ -59,17 +59,20 @@ async def handle_file_button(client, callback: CallbackQuery):
     user_id = callback.from_user.id
     
     # --- 🛡️ PRE-FILE SEND F-SUB CHECK ---
-    is_joined, error_msg = await check_fsub_on_demand(client, user_id)
+    is_joined, error_msg, fsub_link = await check_fsub_on_demand(client, user_id)
     
     if not is_joined:
         # Join channel message with movie_id preserved
         movie_id = callback.data.split("_")[1]
+        
+        buttons = []
+        if fsub_link:
+            buttons.append([InlineKeyboardButton("🎯 𝐉𝐎𝐈𝐍 𝐂𝐇𝐀𝐍𝐍𝐄𝐋", url=fsub_link)])
+        buttons.append([InlineKeyboardButton("🔄 𝐓𝐑𝐘 𝐀𝐆𝐀𝐈𝐍", callback_data=f"get_{movie_id}")])
+        
         return await callback.message.edit_text(
             f"📣 **Channel Membership Required!**\n\n{error_msg}\n\nAfter joining, click the file button again.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🎯 𝐉𝐎𝐈𝐍 𝐂𝐇𝐀𝐍𝐍𝐄𝐋", url=FSUB_LINK)],
-                [InlineKeyboardButton("🔄 𝐓𝐑𝐘 𝐀𝐆𝐀𝐈𝐍", callback_data=f"get_{movie_id}")]
-            ])
+            reply_markup=InlineKeyboardMarkup(buttons)
         )
     
     movie_id = callback.data.split("_")[1]

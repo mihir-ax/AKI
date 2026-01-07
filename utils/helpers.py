@@ -48,28 +48,34 @@ async def check_fsub_on_demand(client, user_id):
     """
     Sirf file bhejte time check karne ke liye
     """
-    from config import ADMINS, FSUB_CHANNEL
+    from config import ADMINS, FSUB_CHANNEL, FSUB_ENABLED
     
     # 1. Admin hai toh allow
     if user_id in ADMINS:
-        return True, None
+        return True, None, None
     
-    # 2. Agar F-Sub band hai toh allow
+    # 2. Agar F-Sub DISABLED hai toh allow
+    if not FSUB_ENABLED:
+        return True, None, None
+    
+    # 3. Agar channel set nahi hai toh allow
     if not FSUB_CHANNEL:
-        return True, None
+        return True, None, None
     
     try:
         # Check user status in channel
         member = await client.get_chat_member(FSUB_CHANNEL, user_id)
         # Status "kicked" ya "left" nahi hona chahiye
         if member.status in ["member", "administrator", "creator"]:
-            return True, None
+            return True, None, None
         else:
-            # Not joined, error message with join button
-            return False, "❌ **ᴄʜᴀɴɴᴇʟ ᴊᴏɪɴ ʀᴇQᴜɪʀᴇᴅ!**\n\n📢 **ᴊᴏɪɴ ᴛʜᴇ ᴄʜᴀɴɴᴇʟ ꜰɪʀꜱᴛ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜᴇ ꜰɪʟᴇ.**"
+            # Not joined, error message with DYNAMIC join button
+            fsub_link = generate_fsub_link(FSUB_CHANNEL)
+            error_msg = "❌ **Channel Join Required!**\n\n📢 **Join the channel first to download the file.**"
+            return False, error_msg, fsub_link
     except Exception as e:
         print(f"F-Sub Check Error: {e}")
-        return False, "❌ **ᴇʀʀᴏʀ ᴡʜɪʟᴇ ᴄʜᴇᴄᴋɪɴɢ ᴄʜᴀɴɴᴇʟ ᴀᴄᴄᴇꜱꜱ!**"
+        return False, "❌ **Error while checking channel access!**", None
 
 async def get_ai_correction(query):
     from config import GROQ_MODEL, GROQ_SYSTEM_PROMPT
@@ -150,3 +156,17 @@ async def auto_delete_messages(messages, delay):
             await msg.delete()
         except:
             pass
+
+def generate_fsub_link(channel_username):
+    """
+    Dynamic channel join link generate karta hai
+    """
+    if channel_username.startswith("@"):
+        # Public channel hai
+        return f"https://t.me/{channel_username[1:]}"
+    elif str(channel_username).startswith("-100"):
+        # Private channel hai
+        return f"https://t.me/c/{channel_username[4:]}"
+    else:
+        # Pehle se hi full link hai
+        return channel_username

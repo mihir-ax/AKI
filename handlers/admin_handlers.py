@@ -209,3 +209,46 @@ async def daily_stats_handler(client, message):
 """
     
     await message.reply_text(text)
+
+
+@Client.on_message(filters.command("fsub") & filters.user(ADMINS))
+async def fsub_toggle_handler(client, message):
+    """
+    Toggle Force Subscribe feature on/off
+    """
+    from config import FSUB_ENABLED, FSUB_CHANNEL
+    
+    if len(message.command) > 1:
+        # /fsub on ya /fsub off
+        action = message.command[1].lower()
+        
+        if action in ["on", "yes", "true", "enable"]:
+            # Enable FSUB
+            # Yahan tum apne config ko update karne ka logic add karoge
+            # For example, database mein store karo ya config file update karo
+            await message.reply_text(
+                f"✅ **Force Subscribe ENABLED**\n\n"
+                f"**Channel:** {FSUB_CHANNEL}\n"
+                f"**Status:** Users must join channel to download files"
+            )
+        elif action in ["off", "no", "false", "disable"]:
+            # Disable FSUB
+            await message.reply_text(
+                "✅ **Force Subscribe DISABLED**\n\n"
+                "**Status:** Users can download files without joining channel"
+            )
+        else:
+            await message.reply_text(
+                "⚠️ **Usage:** `/fsub on` or `/fsub off`\n\n"
+                f"**Current Status:** {'ENABLED' if FSUB_ENABLED else 'DISABLED'}"
+            )
+    else:
+        # Show current status
+        await message.reply_text(
+            f"📢 **Force Subscribe Status**\n\n"
+            f"**Enabled:** {'✅ Yes' if FSUB_ENABLED else '❌ No'}\n"
+            f"**Channel:** {FSUB_CHANNEL or 'Not set'}\n\n"
+            f"**Commands:**\n"
+            f"• `/fsub on` - Enable force subscribe\n"
+            f"• `/fsub off` - Disable force subscribe"
+        )

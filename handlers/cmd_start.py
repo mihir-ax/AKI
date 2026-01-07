@@ -65,16 +65,19 @@ async def start_handler(client: Client, message: Message):
     if len(text) > 1 and text[1].startswith("file_"):
         movie_id = text[1].split("_")[1]
         
-        # 🛡️ First: Force Subscribe Check
-        is_joined, error_msg = await check_fsub_on_demand(client, user_id)
+        # 🛡️ First: Force Subscribe Check (with DYNAMIC link)
+        is_joined, error_msg, fsub_link = await check_fsub_on_demand(client, user_id)
         
         if not is_joined:
+            buttons = []
+            if fsub_link:
+                buttons.append([InlineKeyboardButton("🎯 𝐉𝐎𝐈𝐍 𝐂𝐇𝐀𝐍𝐍𝐄𝐋", url=fsub_link)])
+            
             return await message.reply_text(
                 f"**📣 Channel Membership Required!**\n\n{error_msg}",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🎯 𝐉𝐎𝐈𝐍 𝐂𝐇𝐀𝐍𝐍𝐄𝐋", url=FSUB_LINK)
-                ]])
+                reply_markup=InlineKeyboardMarkup(buttons)
             )
+
         
         # 🔐 Second: Validation Check (6 hours rule)
         if await is_validated(user_id):
