@@ -32,10 +32,10 @@ async def bulk_index_handler(client: Client, message: Message):
     e_chat, e_id = parse_link(message.command[2])
 
     if not s_id or not e_id or s_chat != e_chat:
-        return await message.reply_text("❌ Invalid Links!")
+        return await message.reply_text("❌ ɪɴᴠᴀʟɪᴅ ʟɪɴᴋꜱ!")
 
     start_time = time.time()
-    status_msg = await message.reply_text("🚀 **Initializing Lightning Indexer...**")
+    status_msg = await message.reply_text("🚀 __ɪɴɪᴛɪᴀʟɪᴢɪɴɢ ʟɪɢʜᴛɴɪɴɢ ɪɴᴅᴇxᴇʀ...__")
 
     total_fetched = 0
     saved_count = 0
@@ -106,17 +106,32 @@ async def bulk_index_handler(client: Client, message: Message):
                 overall_speed = total_fetched / elapsed_time if elapsed_time > 0 else 0
                 now = datetime.now().strftime("%d %b %Y, %I:%M %p")
                 
-                progress_text = (
-                    "⚡ **Lightning Indexing in Progress...**\n"
-                    "------------------------------------\n"
-                    f"📂 **Total Processed:** `{total_fetched}`\n"
-                    f"✅ **Saved (Secret On):** `{saved_count}`\n"
-                    f"🚫 **Duplicates:** `{duplicate_count}`\n"
-                    f"❌ **Unsupported:** `{unsupported_count}`\n"
-                    "------------------------------------\n"
-                    f"⚡ **Avg Speed:** `{overall_speed:.2f} msgs/sec`\n"
-                    f"⏱️ **Elapsed:** `{elapsed_str}`\n"
-                    f"🕒 **Updated:** `{now}`"
+                progress_text = (f"""
+⚡ **ʟɪɢʜᴛɴɪɴɢ ɪɴᴅᴇxɪɴɢ ɪɴ ᴘʀᴏɢʀᴇꜱꜱ**
+**━━━━━━━━━━━━━━━━━━━━━━**
+
+📂 **ᴛᴏᴛᴀʟ ᴘʀᴏᴄᴇꜱꜱᴇᴅ**
+**››** `{total_fetched}`
+
+✅ **ꜱᴀᴠᴇᴅ (ꜱᴇᴄʀᴇᴛ ᴏɴ)**
+**››** `{saved_count}`
+
+🚫 **ᴅᴜᴘʟɪᴄᴀᴛᴇꜱ**
+**››** `{duplicate_count}`
+
+❌ **ᴜɴꜱᴜᴘᴘᴏʀᴛᴇᴅ**
+**››** `{unsupported_count}`
+
+**━━━━━━━━━━━━━━━━━━━━━━**
+⚡ **ᴀᴠᴇʀᴀɢᴇ ꜱᴘᴇᴇᴅ**
+**››** `{overall_speed:.2f} ᴍꜱɢꜱ / ꜱᴇᴄ`
+
+⏱️ **ᴇʟᴀᴘꜱᴇᴅ ᴛɪᴍᴇ**
+**››** `{elapsed_str}`
+
+🕒 **ʟᴀꜱᴛ ᴜᴘᴅᴀᴛᴇᴅ**
+**››** `{now}`"""
+
                 )
                 try: await status_msg.edit_text(progress_text)
                 except: pass
@@ -150,24 +165,38 @@ async def bulk_index_handler(client: Client, message: Message):
     speed = total_fetched / total_time if total_time > 0 else 0
 
     final_now = datetime.now().strftime("%d %b %Y, %I:%M %p")
-    final_message = (
-        "🏁 **Indexing Task Completed!**\n\n"
-        f"📊 **Final Statistics:**\n"
-        f"● Total Fetched: `{total_fetched}`\n"
-        f"● New Files Saved: `{saved_count}`\n"
-        f"● Duplicates Ignored: `{duplicate_count}`\n"
-        f"● Unsupported Media: `{unsupported_count}`\n"
+    final_message = (f"""
+🏁 **ɪɴᴅᴇxɪɴɢ ᴛᴀꜱᴋ ᴄᴏᴍᴘʟᴇᴛᴇᴅ!**
+**━━━━━━━━━━━━━━━━━━━━━━**
+📊 **ꜰɪɴᴀʟ ꜱᴛᴀᴛɪꜱᴛɪᴄꜱ**
+
+● **ᴛᴏᴛᴀʟ ꜰᴇᴛᴄʜᴇᴅ**
+**››** `{total_fetched}`
+
+● **ɴᴇᴡ ꜰɪʟᴇꜱ ꜱᴀᴠᴇᴅ**
+**››** `{saved_count}`
+
+● **ᴅᴜᴘʟɪᴄᴀᴛᴇꜱ ɪɢɴᴏʀᴇᴅ**
+**››** `{duplicate_count}`
+
+● **ᴜɴꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴍᴇᴅɪᴀ**
+**››** `{unsupported_count}`"""
     )
     
     if total_fetched > 0:
-        final_message += f"● Success Rate: `{(saved_count / total_fetched * 100):.2f}%`\n\n"
+        final_message += f"**››** ꜱᴜᴄᴄᴇꜱꜱ ʀᴀᴛᴇ: `{(saved_count / total_fetched * 100):.2f}%`\n\n"
     else:
-        final_message += f"● Success Rate: `N/A`\n\n"
+        final_message += f"**››** ꜱᴜᴄᴄᴇꜱꜱ ʀᴀᴛᴇ: `N/A`\n\n"
     
     final_message += (
-        f"⏱️ **Time Taken:** `{time_str}`\n"
-        f"⚡ **Processing Speed:** `{speed:.2f} msgs/sec`\n\n"
-        f"📅 **Completed at:** `{final_now}`"
+f"""⏱️ **ᴛɪᴍᴇ ᴛᴀᴋᴇɴ**
+**››** `{time_str}`
+
+⚡ **ᴘʀᴏᴄᴇꜱꜱɪɴɢ ꜱᴘᴇᴇᴅ**
+**››** `{speed:.2f} ᴍꜱɢꜱ / ꜱᴇᴄ`
+
+📅 **ᴄᴏᴍᴘʟᴇᴛᴇᴅ ᴀᴛ**
+**››** `{final_now}`"""
     )
     
     await status_msg.edit_text(final_message)

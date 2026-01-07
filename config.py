@@ -28,14 +28,15 @@ SHORTENER_API_KEY = os.getenv("SHORTENER_API_KEY", " ")
 # Validation & Security
 VALIDATION_TIME = 6 * 3600  # 6 hours
 AUTO_DELETE_TIME = 600      # 10 minutes (in seconds)
-RESULT_DELETE_TIME = 300
+RESULT_DELETE_TIME = 300    # 5 minutes
 
 # Custom Caption Template (HTML)
 CUSTOM_CAPTION = """
-<b>🎬 File Name:</b> <code>{filename}</code>
-<b>💾 Size:</b> <code>{filesize}</code>
+<b>🗄️ ꜰɪʟᴇ ɴᴀᴍᴇ:</b> <code>{filename}</code>
 
-<i>⚠️ Note: This file will be deleted in 10 minutes to avoid copyright. Save it to your saved messages!</i>
+    <b>🥀 ꜱɪᴢᴇ:</b> <code>{filesize}</code>
+
+<i>⚠️ Note: this will delete in few minutes Save it to your saved messages!</i>
 """
 
 # Filter Lists
@@ -46,13 +47,6 @@ YEARS = [str(y) for y in range(2026, 1990, -1)]
 SEASONS = [f"S{i:02d}" for i in range(1, 11)] # S01 to S10
 EPISODES = [f"E{i:02d}" for i in range(1, 11)] # E01 to E10
 
-
-
-
-
-# config.py mein yeh add karo
-
-# System Prompt: AI ko uski identity aur rules batane ke liye
 GROQ_SYSTEM_PROMPT = """
 You are a Movie & TV Title Normalization Expert.
 

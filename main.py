@@ -1,8 +1,8 @@
 from pyrogram import Client
 from config import API_ID, API_HASH, BOT_TOKEN
 import logging
-from database.movies_db import create_indexes # Import karo
-from aiohttp import web # Dummy server ke liye
+from database.movies_db import create_indexes
+from aiohttp import web
 import asyncio
 
 # Basic logging
@@ -39,7 +39,7 @@ class Bot(Client):
         app.router.add_get("/", health_check)
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, "0.0.0.0", 8000) # Koyeb/Replit port 8000 check karta hai
+        site = web.TCPSite(runner, "0.0.0.0", 8000)
         await site.start()
         print("🌐 Health Check Server started on port 8000")
 

@@ -66,10 +66,10 @@ async def check_fsub_on_demand(client, user_id):
             return True, None
         else:
             # Not joined, error message with join button
-            return False, "❌ **Channel Join Required!**\n\nPehle channel join karo phir file download karo."
+            return False, "❌ **ᴄʜᴀɴɴᴇʟ ᴊᴏɪɴ ʀᴇQᴜɪʀᴇᴅ!**\n\n📢 **ᴊᴏɪɴ ᴛʜᴇ ᴄʜᴀɴɴᴇʟ ꜰɪʀꜱᴛ ᴛᴏ ᴅᴏᴡɴʟᴏᴀᴅ ᴛʜᴇ ꜰɪʟᴇ.**"
     except Exception as e:
         print(f"F-Sub Check Error: {e}")
-        return False, "❌ Channel access check mein error aaya!"
+        return False, "❌ **ᴇʀʀᴏʀ ᴡʜɪʟᴇ ᴄʜᴇᴄᴋɪɴɢ ᴄʜᴀɴɴᴇʟ ᴀᴄᴄᴇꜱꜱ!**"
 
 async def get_ai_correction(query):
     from config import GROQ_MODEL, GROQ_SYSTEM_PROMPT

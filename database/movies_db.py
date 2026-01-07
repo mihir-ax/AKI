@@ -13,7 +13,7 @@ async def create_indexes():
     # Yeh line search ko 1000 guna fast bana degi
     await movies.create_index([("file_name", "text")])
     await movies.create_index([("file_name", 1)])
-    print("✅ MongoDB Indexes Created!")
+    # print("✅ MongoDB Indexes Created!")
 
 async def add_movie(file_id, file_name, file_size, chat_id, message_id, caption_name):
     """Movie save karte waqt caption_name (clean name) bhi save karenge"""

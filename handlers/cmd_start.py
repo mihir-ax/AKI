@@ -31,7 +31,7 @@ async def start_handler(client: Client, message: Message):
             await update_validation(user_id)
             file_info = pending_validations.pop(token)
             
-            await message.reply_text("✅ **Verification Successful!**\nAb aap 6 ghante tak files mang sakte hain.")
+            await message.reply_text("✅ **ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟ!**\n\n🤖❌ **ʜᴜᴍᴀɴ ᴄᴏɴꜰɪʀᴍᴇᴅ** — **ʏᴏᴜ ᴀʀᴇ ʀᴇᴀʟʟʏ ʜᴜᴍᴀɴ.**\n\n⏳ **ʏᴏᴜ ᴄᴀɴ ʀᴇQᴜᴇꜱᴛ ꜰɪʟᴇꜱ ꜰᴏʀ ᴛʜᴇ ɴᴇxᴛ 6 ʜᴏᴜʀꜱ.**")
             
             # Send the pending file
             movie = await movies.find_one({"_id": ObjectId(file_info["movie_id"])})
@@ -49,7 +49,7 @@ async def start_handler(client: Client, message: Message):
             asyncio.create_task(auto_delete_message(sent_file))
             return
         else:
-            return await message.reply_text("❌ **Token Expired!** Phir se search karke link generate karo.")
+            return await message.reply_text("❌ __ᴛᴏᴋᴇɴ ᴇxᴘɪʀᴇᴅ!__")
 
     # --- 2. HANDLE FILE DEEP LINK (From Clickable Filenames) ---
     if len(text) > 1 and text[1].startswith("file_"):
@@ -62,7 +62,7 @@ async def start_handler(client: Client, message: Message):
             return await message.reply_text(
                 f"{error_msg}",
                 reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("📢 Join Channel", url=FSUB_LINK)
+                    InlineKeyboardButton("📢 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ", url=FSUB_LINK)
                 ]])
             )
         
@@ -71,7 +71,7 @@ async def start_handler(client: Client, message: Message):
             movie = await movies.find_one({"_id": ObjectId(movie_id)})
             clean_name = clean_file_name(movie['file_name']) # <--- CLEANING HERE
             if not movie: 
-                return await message.reply_text("❌ File records mein nahi hai!")
+                return await message.reply_text("❌ **ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ɪɴ ʀᴇᴄᴏʀᴅꜱ!**")
             
             caption = CUSTOM_CAPTION.format(
                 filename=clean_name,
@@ -89,20 +89,22 @@ async def start_handler(client: Client, message: Message):
             bot_info = await client.get_me()
             v_link = generate_verify_link(bot_info.username, movie_id)
             await message.reply_text(
-                "🚀 **Verification Required!**\n\nFile download karne ke liye niche button pe click karke validate karein (Valid for 6 hours):",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Verify / Open Link", url=v_link)]])
+                "**🚀 ᴠᴇʀɪꜰʏ ᴛʜᴀᴛ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀ ʀᴏʙᴏᴛ!\n\n**🔐 ᴛᴏ ᴘʀᴏᴄᴇᴇᴅ ᴡɪᴛʜ ᴛʜᴇ ꜰɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅ, ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴀɴᴅ ᴠᴇʀɪꜰʏ ᴛʜᴀᴛ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀ ʀᴏʙᴏᴛ.**\n\n**⏳ ᴠᴀʟɪᴅɪᴛʏ: 6 ʜᴏᴜʀꜱ**",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀ ʀᴏʙᴏᴛ", url=v_link)]])
             )
         return
 
     # --- 3. NORMAL START MESSAGE (NO F-SUB CHECK HERE) ---
     await get_user(user_id)
     welcome_text = (
-        f"Hi **{message.from_user.first_name}**! 👋\n\n"
-        "Main ek **Movie Delivery Bot** hu. 🎬\n"
-        "Naam likho aur search karo!"
+        f"""👋 **ʜɪ {message.from_user.first_name}!**
+
+🎬 **ɪ ᴀᴍ ᴀ ᴍᴏᴠɪᴇ ᴅᴇʟɪᴠᴇʀʏ ʙᴏᴛ.**
+🔍 **ᴊᴜꜱᴛ ᴛʏᴘᴇ ᴛʜᴇ ᴍᴏᴠɪᴇ ɴᴀᴍᴇ ᴀɴᴅ ꜱᴛᴀʀᴛ ꜱᴇᴀʀᴄʜɪɴɢ!**
+"""
     )
     await message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup([[
-        InlineKeyboardButton("📊 Stats", callback_data="stats_btn")
+        InlineKeyboardButton("📊 ꜱᴛᴀᴛꜱ", callback_data="stats_btn")
     ]]))
 
 @Client.on_callback_query(filters.regex("stats_btn"))

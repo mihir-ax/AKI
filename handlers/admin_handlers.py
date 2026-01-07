@@ -15,39 +15,47 @@ async def admin_stats(client, message):
     db_stats = await get_db_stats()
     total_files = await get_total_movies()
     
-    stats_text = (
-        "📊 **Bot Dashboard**\n\n"
-        f"👤 **Total Users:** `{db_stats['total_users']}`\n"
-        f"👥 **Total Groups:** `{db_stats['total_groups']}`\n"
-        f"🎬 **Total Files:** `{total_files}`\n\n"
-        "💾 **Database Info:**\n"
-        f"📦 **Data Used:** `{db_stats['data_mb']} MB`\n"
-        f"📂 **Storage Size:** `{db_stats['storage_mb']} MB`\n"
-        "*(Note: 512MB limit in free Atlas)*"
-    )
+    stats_text = (f"""
+> 📊 **ʙᴏᴛ ᴅᴀꜱʜʙᴏᴀʀᴅ**
+
+👤 **ᴛᴏᴛᴀʟ ᴜꜱᴇʀꜱ**  ➤ `{db_stats['total_users']}`
+
+👥 **ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘꜱ**  ➤ `{db_stats['total_groups']}`
+
+🎬 **ᴛᴏᴛᴀʟ ꜰɪʟᴇꜱ**  ➤ `{total_files}`
+
+━━━━━━━━━━━━━━━━━━
+> 💾 **ᴅᴀᴛᴀʙᴀꜱᴇ ɪɴꜰᴏ**
+
+📦 **ᴅᴀᴛᴀ ᴜꜱᴇᴅ**  ➤ `{db_stats['data_mb']} ᴍʙ`
+
+📂 **ꜱᴛᴏʀᴀɢᴇ ꜱɪᴢᴇ**  ➤ `{db_stats['storage_mb']} ᴍʙ`
+
+> ⚠️ **512ᴍʙ ʟɪᴍɪᴛ ᴀᴘᴘʟɪᴇꜱ ᴏɴ ꜰʀᴇᴇ ᴀᴛʟᴀꜱ ᴘʟᴀɴ**
+    """)
     await m.edit_text(stats_text)
 
 @Client.on_message(filters.command("ban") & filters.user(ADMINS))
 async def ban_handler(client, message):
     if len(message.command) < 3:
-        return await message.reply_text("Usage: `/ban userid reason`")
+        return await message.reply_text("📌 **ᴜꜱᴀɢᴇ:** `/ban <ᴜꜱᴇʀ_ɪᴅ> <ʀᴇᴀꜱᴏɴ>`")
     
     try:
         user_id = int(message.command[1])
         reason = " ".join(message.command[2:])
         await ban_user(user_id, reason)
-        await message.reply_text(f"✅ User `{user_id}` has been banned.\nReason: {reason}")
+        await message.reply_text(f"✅ **ᴜꜱᴇʀ `{user_id}` ʜᴀꜱ ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**\n📝 **ʀᴇᴀꜱᴏɴ:** {reason}")
     except ValueError:
-        await message.reply_text("❌ Give a valid User ID.")
+        await message.reply_text("❌ **ᴘʟᴇᴀꜱᴇ ᴘʀᴏᴠɪᴅᴇ ᴀ ᴠᴀʟɪᴅ ᴜꜱᴇʀ ɪᴅ.**")
 
 @Client.on_message(filters.command("unban") & filters.user(ADMINS))
 async def unban_handler(client, message):
     if len(message.command) < 2:
-        return await message.reply_text("Usage: `/unban userid`")
+        return await message.reply_text("📌 **ᴜꜱᴀɢᴇ:** `/unban <ᴜꜱᴇʀ_ɪᴅ>`")
     
     user_id = int(message.command[1])
     await unban_user(user_id)
-    await message.reply_text(f"✅ User `{user_id}` is now free to use the bot.")
+    await message.reply_text(f"✅ **ᴜꜱᴇʀ `{user_id}` ɪꜱ ɴᴏᴡ ꜰʀᴇᴇ ᴛᴏ ᴜꜱᴇ ᴛʜᴇ ʙᴏᴛ.**")
 
 # Group tracker: bot jab group mein add ho
 @Client.on_message(filters.new_chat_members)
@@ -55,7 +63,7 @@ async def track_groups(client, message):
     if any(m.is_self for m in message.new_chat_members):
         from database.users_db import add_group
         await add_group(message.chat.id, message.chat.title)
-        await client.send_message(message.chat.id, "Thanks for adding me! I can search movies here too.")
+        await client.send_message(message.chat.id, "🎉 **ᴛʜᴀɴᴋꜱ ꜰᴏʀ ᴀᴅᴅɪɴɢ ᴍᴇ!**\n🎬 **ɪ ᴄᴀɴ ᴀʟꜱᴏ ꜱᴇᴀʀᴄʜ ᴍᴏᴠɪᴇꜱ ʜᴇʀᴇ.**")
 
 # @Client.on_message(filters.command("index") & filters.user(ADMINS))
 # async def bulk_index_handler(client: Client, message: Message):
@@ -139,7 +147,7 @@ async def get_id_handler(client, message):
     # 1. Private Chat Case
     if message.chat.type == ChatType.PRIVATE:
         await message.reply_text(
-            f"👤 **Your ID:** <code>{message.from_user.id}</code>"
+            f"**›› ᴏᴜʀ ɪᴅ:** <code>{message.from_user.id}</code>"
         )
     
     # 2. Group / Supergroup Case
@@ -151,18 +159,18 @@ async def get_id_handler(client, message):
             # Check for hidden profiles or bots
             if target_user:
                 await message.reply_text(
-                    f"👤 **User:** {target_user.mention}\n"
-                    f"🆔 **User ID:** <code>{target_user.id}</code>\n"
-                    f"🌐 **Group ID:** <code>{message.chat.id}</code>"
+                    f"**›› ᴜꜱᴇʀ:** {target_user.mention}\n"
+                    f"**›› ᴜꜱᴇʀ ɪᴅ:** <code>{target_user.id}</code>\n"
+                    f"**›› ɢʀᴏᴜᴘ ɪᴅ:** <code>{message.chat.id}</code>"
                 )
             else:
-                await message.reply_text("❌ Is user ki ID nahi mil rahi (shayad hidden profile hai).")
+                await message.reply_text("❌ **ᴜɴᴀʙʟᴇ ᴛᴏ ꜰᴇᴛᴄʜ ᴛʜᴇ ᴜꜱᴇʀ ɪᴅ.**\n\n🔒 **ᴛʜᴇ ᴜꜱᴇʀ ᴍᴀʏ ʜᴀᴠᴇ ᴀ ʜɪᴅᴅᴇɴ ᴘʀᴏꜰɪʟᴇ.**")
         
         # B. Bina reply ke sirf /id likha hai
         else:
             await message.reply_text(
-                f"🌐 **Group ID:** <code>{message.chat.id}</code>\n"
-                f"👤 **Your ID:** <code>{message.from_user.id}</code>"
+                f"**›› ɢʀᴏᴜᴘ ɪᴅ** <code>{message.chat.id}</code>\n"
+                f"**›› ʏᴏᴜʀ ɪᴅ*:** <code>{message.from_user.id}</code>"
             )
 
 @Client.on_message(filters.command("dstats") & filters.user(ADMINS))
@@ -180,17 +188,26 @@ async def daily_stats_handler(client, message):
         if gen == 0: return 0
         return round((ver / gen) * 100, 2)
 
-    text = (
-        "📅 **Daily Traffic Report**\n\n"
-        f"☀️ **Today ({today}):**\n"
-        f" ├ 🔗 Generated: `{s_today['links_generated']}`\n"
-        f" ├ ✅ Verified: `{s_today['links_verified']}`\n"
-        f" └ 📊 Success: `{get_pc(s_today['links_generated'], s_today['links_verified'])}%`\n\n"
-        
-        f"🌙 **Yesterday ({yesterday}):**\n"
-        f" ├ 🔗 Generated: `{s_yesterday['links_generated']}`\n"
-        f" ├ ✅ Verified: `{s_yesterday['links_verified']}`\n"
-        f" └ 📊 Success: `{get_pc(s_yesterday['links_generated'], s_yesterday['links_verified'])}%`"
-    )
+    text = (f"""
+📅 **ᴅᴀɪʟʏ ᴛʀᴀꜰꜰɪᴄ ʀᴇᴘᴏʀᴛ**
+**━━━━━━━━━━━━━━━━━━**
+            
+**☀️ ᴛᴏᴅᴀʏ ({today})**
+**├ 🔗 ʟɪɴᴋꜱ ɢᴇɴᴇʀᴀᴛᴇᴅ**
+**│  ››** `{s_today['links_generated']}`
+**├ ✅ ʟɪɴᴋꜱ ᴠᴇʀɪꜰɪᴇᴅ**
+**│  ››** `{s_today['links_verified']}`
+**└ 📊 ꜱᴜᴄᴄᴇꜱꜱ ʀᴀᴛᴇ**
+   **››** `{get_pc(s_today['links_generated'], s_today['links_verified'])}%`
+
+**━━━━━━━━━━━━━━━━━━**
+**🌙 ʏᴇꜱᴛᴇʀᴅᴀʏ ({yesterday})**
+**├ 🔗 ʟɪɴᴋꜱ ɢᴇɴᴇʀᴀᴛᴇᴅ**
+**│  ››** `{s_yesterday['links_generated']}`
+**├ ✅ ʟɪɴᴋꜱ ᴠᴇʀɪꜰɪᴇᴅ**
+**│  ››** `{s_yesterday['links_verified']}`
+**└ 📊 ꜱᴜᴄᴄᴇꜱꜱ ʀᴀᴛᴇ**
+   **››** `{get_pc(s_yesterday['links_generated'], s_yesterday['links_verified'])}%`
+"""    )
     
     await message.reply_text(text)

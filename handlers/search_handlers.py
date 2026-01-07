@@ -48,7 +48,7 @@ async def check_fsub_callback(client, callback):
         await callback.message.delete() # Join message delete karo
         await show_results(client, callback.message, query, page=0) # Search result dikhao
     else:
-        await callback.answer("❌ Abhi bhi join nahi kiya bhai! Pehle join karo.", show_alert=True)
+        await callback.answer("❌ ʏᴏᴜ ʜᴀᴠᴇ ɴᴏᴛ ᴊᴏɪɴᴇᴅ ʏᴇᴛ! 👉 ᴊᴏɪɴ ꜰɪʀꜱᴛ.", show_alert=True)
 
 # File button handler
 @Client.on_callback_query(filters.regex(r"^get_"))
@@ -64,8 +64,8 @@ async def handle_file_button(client, callback: CallbackQuery):
         return await callback.message.edit_text(
             f"{error_msg}\n\nJoin karne ke baad phir se file button click karo.",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("📢 Join Channel", url=FSUB_LINK)],
-                [InlineKeyboardButton("🔄 Try Again", callback_data=f"get_{movie_id}")]
+                [InlineKeyboardButton("📣 ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ 📣", url=FSUB_LINK)],
+                [InlineKeyboardButton("♻️ ʀᴇᴛʀʏ ♻️", callback_data=f"get_{movie_id}")]
             ])
         )
     
@@ -80,14 +80,14 @@ async def handle_file_button(client, callback: CallbackQuery):
         v_link = generate_verify_link(bot_info.username, movie_id)
         
         return await callback.message.reply_text(
-            "🚀 **Verification Required!**\n\nFile download karne ke liye niche button pe click karke validate karein (Valid for 6 hours):",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Verify / Open Link", url=v_link)]])
+            "**🚀 ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀ ʀᴏʙᴏᴛ !🤖**\n\n**🔐 ᴛᴏ ᴘʀᴏᴄᴇᴇᴅ ᴡɪᴛʜ ᴛʜᴇ ꜰɪʟᴇ ᴅᴏᴡɴʟᴏᴀᴅ, ᴘʟᴇᴀꜱᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴ ʙᴇʟᴏᴡ ᴀɴᴅ ᴠᴇʀɪꜰʏ ᴛʜᴀᴛ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀ ʀᴏʙᴏᴛ.🤖🤖**\n\n**⏳ ᴠᴀʟɪᴅɪᴛʏ: 6 ʜᴏᴜʀꜱ**",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ ᴠᴇʀɪꜰʏ ʏᴏᴜ ᴀʀᴇ ɴᴏᴛ ᴀ ʀᴏʙᴏᴛ 🤖", url=v_link)]])
         )
 
     # 2. Agar validated hai, toh file bhej do
     movie = await movies.find_one({"_id": ObjectId(movie_id)})
     if not movie:
-        return await callback.answer("❌ File records mein nahi hai!", show_alert=True)
+        return await callback.answer("❌ ꜰɪʟᴇ ɴᴏᴛ ꜰᴏᴜɴᴅ ɪɴ ʀᴇᴄᴏʀᴅꜱ!", show_alert=True)
 
     clean_name = clean_file_name(movie['file_name'])
     caption = CUSTOM_CAPTION.format(
@@ -95,7 +95,7 @@ async def handle_file_button(client, callback: CallbackQuery):
         filesize=get_readable_size(movie["file_size"])
     )
     
-    await callback.answer("Sending file... 📤")
+    await callback.answer("**📤 ꜱᴇɴᴅɪɴɢ ꜰɪʟᴇ...📤**")
     
     try:
         sent_file = await client.copy_message(
@@ -108,7 +108,7 @@ async def handle_file_button(client, callback: CallbackQuery):
         asyncio.create_task(auto_delete_message(sent_file))
     except Exception as e:
         print(f"Error sending file: {e}")
-        await callback.message.reply_text("❌ Kuch error aaya file bhejne mein!")
+        await callback.message.reply_text("❌ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ ᴡʜɪʟᴇ ꜱᴇɴᴅɪɴɢ ᴛʜᴇ ꜰɪʟᴇ!")
 
 async def show_results(client, message, query, page=0):
     """
@@ -149,8 +149,8 @@ async def show_results(client, message, query, page=0):
         google_query = urllib.parse.quote(query)
         google_link = f"https://www.google.com/search?q={google_query}"
         
-        not_found_text = f"❌ **No results found for:** `{query}`\nTry different keywords!"
-        markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔍 Search on Google", url=google_link)]])
+        not_found_text = f"❌ ɴᴏ ʀᴇꜱᴜʟᴛꜱ ꜰᴏᴜɴᴅ ꜰᴏʀ:** `{query}`\n\nᴛʀʏ ᴅɪꜰꜰᴇʀᴇɴᴛ ᴋᴇʏᴡᴏʀᴅꜱ!"
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("🔍 ꜱᴇᴀʀᴄʜ ᴏɴ ɢᴏᴏɢʟᴇ", url=google_link)]])
 
         if isinstance(message, CallbackQuery):
             await message.answer(not_found_text, show_alert=True)
@@ -165,13 +165,13 @@ async def show_results(client, message, query, page=0):
     bot = await client.get_me()
     keyboard = []
 
-    text = f"📂 **Search Results: {total}**\n\n"
+    text = f"**📂 ꜱᴇᴀʀᴄʜ ʀᴇꜱᴜʟᴛꜱ: {total}**\n\n"
 
     # 4. CAPTION MODE (Text List with Clickable Links)
     if RESULT_MODE == "CAPTION":
-        text = f"📂 **Search Results: {total}**\n\n"
+        text = f"<b>📂 ꜱᴇᴀʀᴄʜ ʀᴇꜱᴜʟᴛꜱ: {total}</b>\n\n"
         if ai_correction_used:
-            text += f"💡 *Showing results for:* `{query}`\n*(Originally searched: {original_query})*\n\n"
+            text += f"<b>💡 ꜱʜᴏᴡɪɴɢ ʀᴇꜱᴜʟᴛꜱ ꜰᴏʀ: </b>`{query}`\n<b>(ᴏʀɪɢɪɴᴀʟʟʏ ꜱᴇᴀʀᴄʜᴇᴅ: {original_query})</b>\n\n"
         
         for i, movie in enumerate(results, 1):
             size = get_readable_size(movie['file_size'])
@@ -179,13 +179,13 @@ async def show_results(client, message, query, page=0):
             clean_name = movie.get('caption_name', "No Name") 
             
             link = f"https://t.me/{bot.username}?start=file_{movie['_id']}"
-            text += f"{i}. <b><a href='{link}'>{clean_name}</a></b>\n      └ 💾 <code>{size}</code>\n\n"
+            text += f"{i}. <b><a href='{link}'>{size}{clean_name}</a></b>\n\n"
     else:
         # BUTTON MODE
         if ai_correction_used:
-            text = f"🎬 **Results for:** `{query}`\n💡 *Originally searched:* `{original_query}`\n\n*(Files niche buttons mein hain)*"
+            text = f"<b>🎬 ʀᴇꜱᴜʟᴛꜱ ꜰᴏʀ: </b>`{query}`\n<b>💡 ᴏʀɪɢɪɴᴀʟʟʏ ꜱᴇᴀʀᴄʜᴇᴅ: </b>`{original_query}`\n\n<b>⬇️ ꜰɪʟᴇꜱ ᴀʀᴇ ᴀᴠᴀɪʟᴀʙʟᴇ ɪɴ ᴛʜᴇ ʙᴜᴛᴛᴏɴꜱ ʙᴇʟᴏᴡ ⬇️</b>"
         else:
-            text = f"🎬 **Results for:** `{query}`\n\n*(Files niche buttons mein hain)*"
+            text = f"<b>🎬 ʀᴇꜱᴜʟᴛꜱ ꜰᴏʀ: </b>`{query}`\n\n<b>⬇️ ꜰɪʟᴇꜱ ᴀʀᴇ ᴀᴠᴀɪʟᴀʙʟᴇ ʙᴇʟᴏᴡ ⬇️</b>"
             
         for movie in results:
             size = get_readable_size(movie['file_size'])
@@ -199,38 +199,39 @@ async def show_results(client, message, query, page=0):
     # Agar filter laga hua hai (ek se zyada words) toh filter buttons dikhao
     if len(query_words) > 1:
         filter_rows = [
-            [InlineKeyboardButton("•CHOOSE LANGUAGE•", callback_data=f"list_lang_{query}_{page}")],
-            [InlineKeyboardButton("•QUALITY", callback_data=f"list_qual_{query}_{page}"), 
-             InlineKeyboardButton("season•", callback_data=f"list_season_{query}_{page}")],
-            [InlineKeyboardButton("Year 📅", callback_data=f"list_year_{query}_{page}"),
-             InlineKeyboardButton("Episode 📺", callback_data=f"list_ep_{query}_{page}")]
+            [InlineKeyboardButton("✦ 𝐂𝐇𝐎𝐎𝐒𝐄 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄 ✦", callback_data=f"list_lang_{query}_{page}")],
+            [InlineKeyboardButton("✦ 𝐐𝐔𝐀𝐋𝐈𝐓𝐘 ", callback_data=f"list_qual_{query}_{page}"), 
+             InlineKeyboardButton(" 𝐒𝐄𝐀𝐒𝐎𝐍 ✦", callback_data=f"list_season_{query}_{page}")],
+            [InlineKeyboardButton("✦ 𝐘𝐄𝐀𝐑 ", callback_data=f"list_year_{query}_{page}"),
+             InlineKeyboardButton(" 𝐄𝐏𝐈𝐒𝐎𝐃𝐄  ✦", callback_data=f"list_ep_{query}_{page}")]
         ]
         keyboard.extend(filter_rows)
         
         # RESET FILTER BUTTON - pehle word par wapas jao
         original_word = query_words[0]
-        keyboard.append([InlineKeyboardButton("🔄 RESET ALL FILTERS", callback_data=f"page_{original_word}_0")])
+        keyboard.append([InlineKeyboardButton("♻️ 𝐑𝐄𝐒𝐄𝐓 𝐀𝐋𝐋 𝐅𝐈𝐋𝐓𝐄𝐑𝐒 ♻️", callback_data=f"page_{original_word}_0")])
     else:
         # Agar koi filter nahi laga (single word query), toh filter selection options dikhao
         filter_rows = [
-            [InlineKeyboardButton("🎭 Add Language Filter", callback_data=f"list_lang_{query}_{page}")],
-            [InlineKeyboardButton("📀 Add Quality Filter", callback_data=f"list_qual_{query}_{page}")],
-            [InlineKeyboardButton("📅 Add Year Filter", callback_data=f"list_year_{query}_{page}")],
-            [InlineKeyboardButton("📺 Add Season/Episode Filter", callback_data=f"list_season_{query}_{page}")]
+            [InlineKeyboardButton("🌍 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄", callback_data=f"list_lang_{query}_{page}"),
+            InlineKeyboardButton("🎞️ 𝐐𝐔𝐀𝐋𝐈𝐓𝐘", callback_data=f"list_qual_{query}_{page}")],
+            [InlineKeyboardButton("📅 𝐘𝐄𝐀𝐑", callback_data=f"list_year_{query}_{page}"),
+            InlineKeyboardButton("📺 𝐒𝐄𝐀𝐒𝐎𝐍 / 𝐄𝐏𝐈𝐒𝐎𝐃𝐄", callback_data=f"list_season_{query}_{page}")]
         ]
+
         keyboard.extend(filter_rows)
         # RESET button nahi dikhao kyunki kuch reset karne ko hai hi nahi
 
     # 6. PAGINATION BUTTONS
     nav_buttons = []
     if page > 0:
-        nav_buttons.append(InlineKeyboardButton("⬅️ PREV", callback_data=f"page_{query}_{page-1}"))
+        nav_buttons.append(InlineKeyboardButton("⌫ 𝐏𝐑𝐄𝐕𝐈𝐎𝐔𝐒", callback_data=f"page_{query}_{page-1}"))
     
     # Current page indicator
     nav_buttons.append(InlineKeyboardButton(f"{page+1}/{(total//10)+1}", callback_data="none"))
     
     if total > (page + 1) * limit:
-        nav_buttons.append(InlineKeyboardButton("NEXT ➡️", callback_data=f"page_{query}_{page+1}"))
+        nav_buttons.append(InlineKeyboardButton("𝐍𝐄𝐗𝐓 ⌦", callback_data=f"page_{query}_{page+1}"))
     
     keyboard.append(nav_buttons)
 
@@ -282,8 +283,8 @@ async def show_filter_options(client, callback: CallbackQuery):
             row = []
     if row: buttons.append(row)
     
-    buttons.append([InlineKeyboardButton("⬅️ BACK", callback_data=f"page_{query}_{page}")])
-    await callback.message.edit_text(f"🎯 **Filters for:** `{query}`", reply_markup=InlineKeyboardMarkup(buttons))
+    buttons.append([InlineKeyboardButton("⌫ 𝐁𝐀𝐂𝐊", callback_data=f"page_{query}_{page}")])
+    await callback.message.edit_text(f"**🎯 ꜰɪʟᴛᴇʀꜱ ꜰᴏʀ:** `{query}`", reply_markup=InlineKeyboardMarkup(buttons))
 
 @Client.on_callback_query(filters.regex(r"^page_"))
 async def handle_pagination(client, callback: CallbackQuery):
