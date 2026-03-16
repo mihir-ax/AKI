@@ -10,7 +10,7 @@ API_ID = int(os.getenv("API_ID", ""))
 API_HASH = os.getenv("API_HASH", " ")
 API = "https://auto-caption-bot-qfz4.onrender.com"
 
-bot_token_env = os.getenv("BOT_TOKEN", " ")
+bot_token_env = os.getenv("BOT_TOKENS", " ")
 BOT_TOKENS = [t.strip() for t in bot_token_env.split(",") if t.strip()]
 
 # Database
