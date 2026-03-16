@@ -8,7 +8,14 @@ START_TIME = time.time()
 # Bot Credentials
 API_ID = int(os.getenv("API_ID", ""))
 API_HASH = os.getenv("API_HASH", " ")
-API = "https://auto-caption-bot-qfz4.onrender.com"
+API = "https://auto-caption-bot-qfz4.onrender.com, https://rook-gh81.onrender.com"
+TARGET_BOTS = {
+    "https://auto-caption-bot-qfz4.onrender.com": "CAPTION BOT",
+    "https://rook-gh81.onrender.com": "RoOk BOT"
+}
+
+# Tera Alerify API URL
+ALERIFY_URL = "https://rapid-x-chi.vercel.app/send"
 
 bot_token_env = os.getenv("BOT_TOKENS", " ")
 BOT_TOKENS = [t.strip() for t in bot_token_env.split(",") if t.strip()]
