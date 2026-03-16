@@ -12,20 +12,39 @@ logging.basicConfig(level=logging.INFO)
 async def health_check(request):
     return web.Response(text="MovieBots are Alive!")
 
-# --- PINGER TASK ---
+# --- PINGER TASK (UPDATED FOR MULTIPLE URLs) ---
 async def ping_other_bot():
-    """Ye function har 20 sec me dusre bot ko ping karega"""
+    """Ye function har 20 sec me saari URLs ko ek sath ping karega"""
     if not API:
-        print("⚠️ API URL set nahi hai. Pinger start nahi hua.")
+        print("⚠️ API URLs set nahi hain. Pinger start nahi hua.")
         return
+
+    # String ko comma se split karke list bana lo, aur extra spaces hata do
+    urls = [url.strip() for url in API.split(",") if url.strip()]
+    
+    if not urls:
+        print("⚠️ Koi valid URL nahi mili.")
+        return
+
+    print(f"🔄 Pinger started for {len(urls)} URLs: {urls}")
 
     while True:
         try:
+            # Ek hi session mein saari requests bhejenge (Fast & Efficient)
             async with aiohttp.ClientSession() as session:
-                async with session.get(API) as response:
-                    pass
-        except Exception:
-            pass
+                tasks = []
+                for url in urls:
+                    # Har url ke liye ek GET request task banao
+                    tasks.append(session.get(url))
+                
+                # asyncio.gather saari URLs ko ek hi time pe ping karega
+                # return_exceptions=True ka matlab agar ek fail hui toh dusri rukegi nahi
+                await asyncio.gather(*tasks, return_exceptions=True)
+                
+        except Exception as e:
+            # Agar session banane me koi error aaye
+            print(f"Pinger Error: {e}")
+            
         await asyncio.sleep(20) # 20 second ka sleep
 # -------------------
 
