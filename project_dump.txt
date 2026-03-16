@@ -1,0 +1,2100 @@
+PROJECT TREE STRUCTURE
+================================================================================
+├── AKI/
+│   ├── .env
+│   ├── .gitattributes
+│   ├── .gitignore
+│   ├── config.py
+│   ├── dsd.py
+│   ├── main.py
+│   ├── MovieBot_1.session
+│   ├── PaymentBot.session
+│   ├── PaymentBot.session-journal
+│   ├── payment_bot.py
+│   ├── Procfile
+│   ├── project_dump.txt
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── database/
+│   │   ├── movies_db.py
+│   │   ├── settings_db.py
+│   │   ├── stats_db.py
+│   │   ├── users_db.py
+│   ├── handlers/
+│   │   ├── admin_handlers.py
+│   │   ├── cmd_help.py
+│   │   ├── cmd_start.py
+│   │   ├── index_handler.py
+│   │   ├── search_handlers.py
+│   ├── utils/
+│   │   ├── helpers.py
+│   │   ├── shortener.py
+
+
+FILE CONTENT DUMP
+================================================================================
+
+================================================================================
+FILE PATH: config.py
+================================================================================
+import os
+import time
+from dotenv import load_dotenv
+
+load_dotenv()
+START_TIME = time.time()
+
+# Bot Credentials
+API_ID = int(os.getenv("API_ID", ""))
+API_HASH = os.getenv("API_HASH", " ")
+API = "https://auto-caption-bot-qfz4.onrender.com"
+
+bot_token_env = os.getenv("BOT_TOKEN", " ")
+BOT_TOKENS = [t.strip() for t in bot_token_env.split(",") if t.strip()]
+
+# Database
+MONGO_URI = os.getenv("MONGO_URI", " ")
+DB_NAME = os.getenv("DB_NAME", " ")
+
+# AI-AI
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", " ")
+GROQ_MODEL = os.getenv("GROQ_MODEL", " ")
+
+# Admin Settings
+ADMINS = [int(id) for id in os.getenv("ADMINS", " ").split(",")]
+FSUB_LINK =  os.getenv("FSUB_LINK", " ")
+FSUB_CHANNEL = os.getenv("FSUB_CHANNEL", " ")
+FSUB_ENABLED = True
+
+# Shortener API (Defaults)
+SHORTENER_API_URL = "http://shortxlinks.com/api"
+SHORTENER_API_KEY = os.getenv("SHORTENER_API_KEY", " ")
+
+# Validation & Security
+VALIDATION_TIME = 6 * 3600  # 6 hours
+AUTO_DELETE_TIME = 600      # 10 minutes (in seconds)
+RESULT_DELETE_TIME = 300    # 5 minutes
+
+# Custom Caption Template (Note removed from here)
+CUSTOM_CAPTION = """
+<b>🗄️ ꜰɪʟᴇ ɴᴀᴍᴇ:</b> <code>{filename}</code>
+
+    <b>🥀 ꜱɪᴢᴇ:</b> <code>{filesize}</code>
+"""
+
+# Alag se bhejne ke liye note
+SEPARATE_NOTE = "<i>⚠️ Note: this will delete in few minutes. Save it to your saved messages!</i>"
+
+# Filter Lists
+RESULT_MODE = "CAPTION"
+LANGUAGES = ["Hindi", "English", "Punjabi", "Tamil", "Telugu", "Malayalam", "Kannada", "Dual", "Multi"]
+QUALITIES = ["480p", "720p", "1080p", "1440p", "2160p", "4k", "HDRip", "WEB-DL", "BluRay"]
+YEARS = [str(y) for y in range(2026, 1990, -1)]
+SEASONS = [f"S{i:02d}" for i in range(1, 11)]
+EPISODES = [f"E{i:02d}" for i in range(1, 11)]
+
+GROQ_SYSTEM_PROMPT = """
+You are a Movie & TV Title Normalization Expert.
+
+Your ONLY task is to identify, clean, correct, and normalize movie or TV show titles for search usage.
+
+STRICT RULES (FOLLOW ALL WITHOUT EXCEPTION):
+
+1. Output ONLY the final normalized title.
+   - No explanations
+   - No extra text
+   - No emojis
+   - No markdown
+   - No quotes
+
+2. Remove all conversational or filler words that are NOT part of the title.
+   Examples of words to REMOVE (unless they are part of the actual title):
+   plz, please, bhej, de, send, give, search, find, bhai, bro, movie, film, series
+
+3. Replace ALL special characters with a single SPACE
+   - This includes: dots (.), underscores (_), hyphens (-), pipes (|)
+   - EXCEPT parentheses used ONLY for Year
+   Example:
+   Squid.Game.S01_E01 → Squid Game S01 E01
+
+4. Correct all spelling mistakes accurately.
+
+5. If the title is already correct, return it EXACTLY as it is.
+
+6. Season formatting (MANDATORY):
+   - Use S01, S02, S03
+   - Never use: Season 1, Season One, S1, S2
+
+7. Episode formatting (MANDATORY):
+   - Use E01, E02, E03
+   - Never use: Episode 1, Ep 1, E1
+
+8. YEAR RULE (FIXED POSITION):
+   - Year MUST appear immediately after the main title
+   - Format: Title Year
+   - Example:
+     Jawan Hindi 2023 → Jawan 2023 HINDI
+
+9. Quality & Resolution PRESERVATION (DO NOT MODIFY):
+   - If the user specifies quality or source, keep it EXACTLY as written
+   - Examples:
+     480p, 720p, 1080p, 2160p, 4k, HDRip, BluRay, WEB-DL
+   - Place Quality AFTER the Year
+   Example:
+     Squid Game 720p → Squid Game 2021 720p
+
+10. Language normalization:
+    - If language is mentioned or implied, append it at the END in ALL CAPS
+    Examples:
+    jawan in hindi → Jawan 2023 HINDI
+    leo tamil movie → Leo 2023 TAMIL
+
+11. If input contains intent-based phrases like:
+    - best comedy movie
+    - best action movie
+    - best vfx movie
+    - top sci-fi movie
+    - best bollywood movie
+
+    IGNORE the phrase completely and RETURN a suitable, popular movie title based on your own judgment.
+
+12. If the movie or TV show cannot be confidently identified:
+    - Return the cleaned input with corrected spelling only.
+
+FINAL REMINDER:
+- Output ONLY the normalized title.
+- Absolute silence beyond the title.
+"""
+
+
+================================================================================
+FILE PATH: dsd.py
+================================================================================
+import os
+
+# Extensions to include
+EXTENSIONS = (".ts", ".tsx", ".jsx", ".js", ".html", ".css", ".json", ".cjs", ".py")
+
+# Ignore folders & files
+IGNORE_DIRS = {"node_modules", "dist", ".git", "music", "venv", "__pycache__"}
+IGNORE_FILES = {"package-lock.json", "a.txt"}
+
+ROOT_DIR = os.getcwd()
+OUTPUT_FILE = os.path.join(ROOT_DIR, "project_dump.txt")
+
+def print_tree(start_path, file):
+    for root, dirs, files in os.walk(start_path):
+        # Remove ignored directories
+        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+
+        level = root.replace(start_path, "").count(os.sep)
+        indent = "│   " * level + "├── "
+        file.write(f"{indent}{os.path.basename(root)}/\n")
+
+        subindent = "│   " * (level + 1) + "├── "
+        for f in files:
+            if f not in IGNORE_FILES:
+                file.write(f"{subindent}{f}\n")
+
+def write_files_content(start_path, file):
+    for root, dirs, files in os.walk(start_path):
+        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+
+        for name in files:
+            if name in IGNORE_FILES:
+                continue
+
+            if name.endswith(EXTENSIONS):
+                full_path = os.path.join(root, name)
+                relative_path = os.path.relpath(full_path, start_path)
+
+                file.write("\n" + "="*80 + "\n")
+                file.write(f"FILE PATH: {relative_path}\n")
+                file.write("="*80 + "\n")
+
+                try:
+                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                        file.write(content + "\n")
+                except Exception as e:
+                    file.write(f"Error reading file: {e}\n")
+
+def main():
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
+        file.write("PROJECT TREE STRUCTURE\n")
+        file.write("="*80 + "\n")
+        print_tree(ROOT_DIR, file)
+
+        file.write("\n\nFILE CONTENT DUMP\n")
+        file.write("="*80 + "\n")
+        write_files_content(ROOT_DIR, file)
+
+    print("✅ project_dump.txt created successfully!")
+
+if __name__ == "__main__":
+    main()
+
+
+================================================================================
+FILE PATH: main.py
+================================================================================
+from pyrogram import Client, compose
+from config import API_ID, API_HASH, BOT_TOKENS, API
+import logging
+from database.movies_db import create_indexes
+from aiohttp import web
+import aiohttp
+import asyncio
+
+# Basic logging
+logging.basicConfig(level=logging.INFO)
+
+async def health_check(request):
+    return web.Response(text="MovieBots are Alive!")
+
+# --- PINGER TASK ---
+async def ping_other_bot():
+    """Ye function har 20 sec me dusre bot ko ping karega"""
+    if not API:
+        print("⚠️ API URL set nahi hai. Pinger start nahi hua.")
+        return
+
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(API) as response:
+                    pass
+        except Exception:
+            pass
+        await asyncio.sleep(20) # 20 second ka sleep
+# -------------------
+
+async def main():
+    # 1. Database Indexes
+    await create_indexes()
+
+    print("🚀 Starting Database...")
+    print("""
+███╗   ███╗ ███████╗ ██╗   ██╗
+████╗ ████║ ██╔════╝ ██║   ██║
+██╔████╔██║ ███████╗ ██║   ██║
+██║╚██╔╝██║ ╚════██║ ╚██╗ ██╔╝
+██║ ╚═╝ ██║ ███████║  ╚████╔╝
+╚═╝     ╚═╝ ╚══════╝   ╚═══╝
+""")
+
+    # 2. DUMMY SERVER START
+    app = web.Application()
+    app.router.add_get("/", health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", 8000)
+    await site.start()
+    print("🌐 Health Check Server started on port 8000")
+
+    # 3. PINGER START
+    asyncio.create_task(ping_other_bot())
+
+    # 4. START MULTIPLE BOTS
+    clients = []
+    if not BOT_TOKENS:
+        print("❌ No Bot Tokens found in config (.env)!")
+        return
+
+    for i, token in enumerate(BOT_TOKENS):
+        client = Client(
+            name=f"MovieBot_{i+1}", # Is naam se MovieBot_1.session banegi
+            api_id=API_ID,
+            api_hash=API_HASH,
+            bot_token=token,
+            plugins=dict(root="handlers")
+        )
+        clients.append(client)
+        print(f"🤖 Bot {i+1} Ready & Armed!")
+
+    print("🚀 All Bots Started Successfully!")
+
+    # Ye saare bots ko ek saath run karega
+    await compose(clients)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+================================================================================
+FILE PATH: payment_bot.py
+================================================================================
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from database.users_db import add_premium, check_premium
+import razorpay
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+PAYMENT_BOT_TOKEN = os.getenv("PAYMENT_BOT_TOKEN", "8718753054:AAEDIdNVTL3q_L34Z7zn9ZpCA-Cp5wPSGk0")
+ADMINS = [int(id) for id in os.getenv("ADMINS", "").split(",")]
+MONGO_URI = os.getenv("MONGO_URI")
+
+# Payment Settings
+PAYMENT_MODE = "RAZORPAY" # Ya "RAZORPAY"
+UPI_ID = "tumhara_upi@paytm"
+QR_IMAGE_URL = "https://i.pinimg.com/736x/b6/29/41/b629411d0d4940dc18e701f4be1117e9.jpg" # Telegram file ID bhi daal sakte ho
+
+RAZORPAY_KEY = os.getenv("RAZORPAY_KEY", "")
+RAZORPAY_SECRET = os.getenv("RAZORPAY_SECRET", "")
+PLAN_PRICE = 49 # Rupees
+
+pay_bot = Client("PaymentBot", api_id=int(os.getenv("API_ID")), api_hash=os.getenv("API_HASH"), bot_token=PAYMENT_BOT_TOKEN)
+
+@pay_bot.on_message(filters.command("start") & filters.private)
+async def start_payment(client, message):
+    is_prem = await check_premium(message.from_user.id)
+    if is_prem:
+        return await message.reply_text("🎉 **You are already a Premium Member!**\nEnjoy direct downloads on our Main Bot.")
+
+    text = f"""
+🌟 **UPGRADE TO PREMIUM** 🌟
+━━━━━━━━━━━━━━━━━━━━
+Get instant, direct movie downloads without any annoying shortener links or ads!
+
+💰 **Price:** ₹{PLAN_PRICE} / Month
+⚡ **Benefits:**
+• Direct File Downloads
+• No Ad Links
+• No Channel Joining Required
+"""
+    btn = InlineKeyboardMarkup([[InlineKeyboardButton("💳 BUY PREMIUM NOW", callback_data="buy_premium")]])
+    await message.reply_text(text, reply_markup=btn)
+
+@pay_bot.on_callback_query(filters.regex("buy_premium"))
+async def buy_handler(client, callback: CallbackQuery):
+    if PAYMENT_MODE == "MANUAL":
+        text = f"📲 **Pay ₹{PLAN_PRICE} via UPI:**\n\n**UPI ID:** `{UPI_ID}`\n\n*After successful payment, please send the Screenshot here.*"
+        await callback.message.edit_text(text)
+
+    elif PAYMENT_MODE == "RAZORPAY":
+        # Yahan tera website ka URL aayega User ID ke sath
+        payment_url = f"https://svms.in/payementxyz-rra/?userid={callback.from_user.id}"
+
+        btn = InlineKeyboardMarkup([[InlineKeyboardButton("🔗 PAY SECURELY NOW", url=payment_url)]])
+        await callback.message.edit_text(
+            f"💳 **Click below to pay securely on our website:**\n\nAfter payment, return here and type /start to check your status.",
+            reply_markup=btn
+        )
+
+# MANUAL SCREENSHOT HANDLER
+@pay_bot.on_message(filters.photo & filters.private)
+async def screenshot_handler(client, message):
+    if PAYMENT_MODE != "MANUAL":
+        return
+
+    user_id = message.from_user.id
+    user_name = message.from_user.first_name
+
+    await message.reply_text("✅ **Screenshot Received!**\n\nOur admins will verify your payment and activate your premium within 1-2 hours.")
+
+    # Send to Admins for approval
+    btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ APPROVE", callback_data=f"approve_{user_id}"),
+         InlineKeyboardButton("❌ REJECT", callback_data=f"reject_{user_id}")]
+    ])
+
+    for admin in ADMINS:
+        try:
+            await client.send_photo(
+                chat_id=admin,
+                photo=message.photo.file_id,
+                caption=f"💸 **NEW PAYMENT RECEIVED**\n\n**User:** {user_name} (`{user_id}`)\n**Amount:** ₹{PLAN_PRICE}",
+                reply_markup=btn
+            )
+        except:
+            pass
+
+# ADMIN APPROVAL HANDLER
+@pay_bot.on_callback_query(filters.regex(r"^(approve|reject)_") & filters.user(ADMINS))
+async def admin_approval(client, callback: CallbackQuery):
+    action, target_user_id = callback.data.split("_")
+    target_user_id = int(target_user_id)
+
+    if action == "approve":
+        await add_premium(target_user_id, days=30) # 30 days premium added to shared Database!
+        await callback.message.edit_caption(caption=f"✅ **APPROVED** for User `{target_user_id}` by Admin.")
+
+        # Notify user
+        try:
+            await client.send_message(target_user_id, "🎉 **Congratulations!**\n\nYour payment has been verified. You are now a Premium Member for 30 Days!\nGo to Main Bot and enjoy direct downloads.")
+        except: pass
+
+    elif action == "reject":
+        await callback.message.edit_caption(caption=f"❌ **REJECTED** for User `{target_user_id}` by Admin.")
+        try:
+            await client.send_message(target_user_id, "❌ **Payment Rejected!**\n\nYour recent payment screenshot was rejected. If this is a mistake, please contact support.")
+        except: pass
+
+if __name__ == "__main__":
+    print("💸 Payment Bot Started!")
+    pay_bot.run()
+
+
+================================================================================
+FILE PATH: database\movies_db.py
+================================================================================
+# --- database/movies_db.py ---
+from motor.motor_asyncio import AsyncIOMotorClient
+from config import MONGO_URI, DB_NAME
+import asyncio
+import re
+
+client = AsyncIOMotorClient(MONGO_URI)
+db = client[DB_NAME]
+movies = db.movies
+
+# --- 1. SEARCH FAST KARNE KE LIYE INDEXES ---
+async def create_indexes():
+    # Yeh line search ko 1000 guna fast bana degi
+    await movies.create_index([("file_name", "text")])
+    await movies.create_index([("file_name", 1)])
+    # print("✅ MongoDB Indexes Created!")
+
+async def add_movie(file_id, file_name, file_size, chat_id, message_id, caption_name):
+    """Movie save karte waqt caption_name (clean name) bhi save karenge"""
+    await movies.update_one(
+        {"file_name": file_name},
+        {"$set": {
+            "file_id": file_id,
+            "file_size": file_size,
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "caption_name": caption_name # Yeh raha hamara 'Secret' field
+        }},
+        upsert=True
+    )
+
+async def search_movies(query, skip=0, limit=10):
+    keywords = query.split()
+    # Hum keywords ko search karenge (Case-insensitive)
+    regex_queries = []
+    for kw in keywords:
+        clean_kw = re.escape(kw)
+        # Search dono fields mein karega (file_name ya caption_name)
+        # Isse filters (720p, Hindi) aur fast kaam karenge
+        regex_queries.append({
+            "$or": [
+                {"file_name": {"$regex": clean_kw, "$options": "i"}},
+                {"caption_name": {"$regex": clean_kw, "$options": "i"}}
+            ]
+        })
+    
+    mongo_query = {"$and": regex_queries} if regex_queries else {}
+    
+    # Projection: Sirf wahi data mangao jo display karna hai (Speed badhegi)
+    cursor = movies.find(mongo_query, {
+        "caption_name": 1, 
+        "file_name": 1, 
+        "file_size": 1, 
+        "_id": 1, 
+        "chat_id": 1, 
+        "message_id": 1
+    }).skip(skip).limit(limit)
+    
+    # Results aur Total Count ek saath mangwao
+    results, total = await asyncio.gather(
+        cursor.to_list(length=limit),
+        movies.count_documents(mongo_query)
+    )
+    
+    return results, total
+
+async def get_total_movies():
+    return await movies.count_documents({})
+
+================================================================================
+FILE PATH: database\settings_db.py
+================================================================================
+from motor.motor_asyncio import AsyncIOMotorClient
+from config import MONGO_URI, DB_NAME, SHORTENER_API_URL, SHORTENER_API_KEY
+
+client = AsyncIOMotorClient(MONGO_URI)
+db = client[DB_NAME]
+settings_col = db.settings
+
+async def get_settings():
+    settings = await settings_col.find_one({"_id": "bot_settings"})
+    if not settings:
+        settings = {
+            "_id": "bot_settings",
+            "shortener_url": SHORTENER_API_URL,
+            "shortener_api": SHORTENER_API_KEY,
+            "pm_search": True,
+            "auto_delete": True,
+            "delete_banned": True
+        }
+        await settings_col.insert_one(settings)
+    return settings
+
+async def update_setting(key, value):
+    await settings_col.update_one(
+        {"_id": "bot_settings"},
+        {"$set": {key: value}},
+        upsert=True
+    )
+
+
+================================================================================
+FILE PATH: database\stats_db.py
+================================================================================
+from motor.motor_asyncio import AsyncIOMotorClient
+from config import MONGO_URI, DB_NAME
+from datetime import datetime
+
+client = AsyncIOMotorClient(MONGO_URI)
+db = client[DB_NAME]
+daily_stats = db.daily_stats
+
+async def increment_gen(date_str):
+    """Links generate hone ka count badhao"""
+    await daily_stats.update_one(
+        {"date": date_str},
+        {"$inc": {"links_generated": 1}},
+        upsert=True
+    )
+
+async def increment_verify(date_str):
+    """Links verify hone ka count badhao"""
+    await daily_stats.update_one(
+        {"date": date_str},
+        {"$inc": {"links_verified": 1}},
+        upsert=True
+    )
+
+async def get_stats_by_date(date_str):
+    """Kisi specific date ka data uthao"""
+    return await daily_stats.find_one({"date": date_str})
+
+================================================================================
+FILE PATH: database\users_db.py
+================================================================================
+from motor.motor_asyncio import AsyncIOMotorClient
+from config import MONGO_URI, DB_NAME, VALIDATION_TIME
+import time
+from datetime import datetime, timedelta
+
+client = AsyncIOMotorClient(MONGO_URI)
+db = client[DB_NAME]
+users = db.users
+groups = db.groups
+
+async def get_user(user_id):
+    user = await users.find_one({"user_id": user_id})
+    if not user:
+        user = {
+            "user_id": user_id,
+            "last_validated_at": 0,
+            "total_searches": 0,
+            "is_admin": False,
+            "is_banned": False,
+            "ban_reason": None,
+            "is_premium": False,
+            "premium_expiry": None
+        }
+        await users.insert_one(user)
+    return user
+
+async def update_validation(user_id):
+    await users.update_one({"user_id": user_id}, {"$set": {"last_validated_at": int(time.time())}}, upsert=True)
+
+async def is_validated(user_id):
+    user = await get_user(user_id)
+    last_val = user.get("last_validated_at", 0)
+    current_time = int(time.time())
+    return (current_time - last_val) < VALIDATION_TIME
+
+# ======== NEW PREMIUM FUNCTIONS ========
+async def check_premium(user_id):
+    user = await get_user(user_id)
+    if user.get("is_premium"):
+        expiry = user.get("premium_expiry")
+        if expiry and expiry > datetime.now():
+            return True
+        elif expiry and expiry <= datetime.now():
+            # Plan expired
+            await users.update_one({"user_id": user_id}, {"$set": {"is_premium": False, "premium_expiry": None}})
+            return False
+    return False
+
+async def add_premium(user_id, days):
+    expiry_date = datetime.now() + timedelta(days=days)
+    await users.update_one(
+        {"user_id": user_id},
+        {"$set": {"is_premium": True, "premium_expiry": expiry_date}},
+        upsert=True
+    )
+
+async def increment_searches(user_id):
+    await users.update_one({"user_id": user_id}, {"$inc": {"total_searches": 1}})
+
+async def add_group(chat_id, title):
+    await groups.update_one({"chat_id": chat_id}, {"$set": {"title": title}}, upsert=True)
+
+async def ban_user(user_id, reason):
+    await users.update_one({"user_id": user_id}, {"$set": {"is_banned": True, "ban_reason": reason}})
+
+async def unban_user(user_id):
+    await users.update_one({"user_id": user_id}, {"$set": {"is_banned": False, "ban_reason": None}})
+
+async def get_db_stats():
+    stats = await db.command("dbStats")
+    data_size = stats['dataSize'] / (1024 * 1024)
+    storage_size = stats['storageSize'] / (1024 * 1024)
+    return {
+        "total_users": await users.count_documents({}),
+        "total_groups": await groups.count_documents({}),
+        "data_mb": round(data_size, 2),
+        "storage_mb": round(storage_size, 2)
+    }
+
+
+================================================================================
+FILE PATH: handlers\admin_handlers.py
+================================================================================
+# --- handlers/admin_handlers.py ---
+
+import time
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from pyrogram.enums import ChatType
+from config import START_TIME
+
+from config import ADMINS
+
+from database.users_db import get_db_stats, ban_user, unban_user
+from database.movies_db import get_total_movies
+from database.stats_db import get_stats_by_date
+from database.settings_db import get_settings, update_setting
+
+from datetime import datetime, timedelta
+
+# Temporary dictionary to handle Admin text inputs
+ADMIN_STATES = {}
+
+# -------- SETTINGS PANEL --------
+@Client.on_message(filters.command("settings") & filters.user(ADMINS))
+async def settings_handler(client, message):
+    settings = await get_settings()
+
+    text = "**⚙️ BOT SETTINGS PANEL**\n\nConfigure bot features below:"
+
+    btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"PM Search: {'✅ ON' if settings.get('pm_search') else '❌ OFF'}", callback_data="set_toggle_pm_search")],
+        [InlineKeyboardButton(f"Auto-Delete: {'✅ ON' if settings.get('auto_delete') else '❌ OFF'}", callback_data="set_toggle_auto_delete")],
+        [InlineKeyboardButton(f"Delete Banned Content: {'✅ ON' if settings.get('delete_banned') else '❌ OFF'}", callback_data="set_toggle_delete_banned")],
+        [InlineKeyboardButton("🔗 Edit Shortener URL", callback_data="set_edit_url")],
+        [InlineKeyboardButton("🔑 Edit Shortener API Key", callback_data="set_edit_api")],
+        [InlineKeyboardButton("❌ Close", callback_data="set_close")]
+    ])
+    await message.reply_text(text, reply_markup=btn)
+
+@Client.on_callback_query(filters.regex(r"^set_") & filters.user(ADMINS))
+async def settings_callbacks(client, callback: CallbackQuery):
+    action = callback.data.split("_", 1)[1]
+    settings = await get_settings()
+
+    if action.startswith("toggle_"):
+        key = action.replace("toggle_", "")
+        current_val = settings.get(key, True)
+        await update_setting(key, not current_val)
+        await callback.answer(f"{key.replace('_', ' ').title()} Updated!", show_alert=True)
+
+        # Refresh Panel
+        new_settings = await get_settings()
+        btn = InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"PM Search: {'✅ ON' if new_settings.get('pm_search') else '❌ OFF'}", callback_data="set_toggle_pm_search")],
+            [InlineKeyboardButton(f"Auto-Delete: {'✅ ON' if new_settings.get('auto_delete') else '❌ OFF'}", callback_data="set_toggle_auto_delete")],
+            [InlineKeyboardButton(f"Delete Banned Content: {'✅ ON' if new_settings.get('delete_banned') else '❌ OFF'}", callback_data="set_toggle_delete_banned")],
+            [InlineKeyboardButton("🔗 Edit Shortener URL", callback_data="set_edit_url")],
+            [InlineKeyboardButton("🔑 Edit Shortener API Key", callback_data="set_edit_api")],
+            [InlineKeyboardButton("❌ Close", callback_data="set_close")]
+        ])
+        await callback.message.edit_reply_markup(btn)
+
+    elif action == "edit_url":
+        ADMIN_STATES[callback.from_user.id] = "awaiting_shortener_url"
+        await callback.message.reply_text("✏️ **Send the new Shortener URL:**\n(Example: `http://shortxlinks.com/api`)")
+        await callback.answer()
+
+    elif action == "edit_api":
+        ADMIN_STATES[callback.from_user.id] = "awaiting_shortener_api"
+        await callback.message.reply_text("🔑 **Send the new Shortener API Key:**")
+        await callback.answer()
+
+    elif action == "close":
+        await callback.message.delete()
+
+# Listen for Admin Text inputs for settings
+@Client.on_message(filters.text & filters.private & filters.user(ADMINS), group=-1)
+async def admin_text_listener(client, message):
+    user_id = message.from_user.id
+    if user_id in ADMIN_STATES:
+        state = ADMIN_STATES[user_id]
+        if state == "awaiting_shortener_url":
+            await update_setting("shortener_url", message.text.strip())
+            await message.reply_text("✅ **Shortener URL Updated Successfully!**")
+            del ADMIN_STATES[user_id]
+            message.stop_propagation()
+
+        elif state == "awaiting_shortener_api":
+            await update_setting("shortener_api", message.text.strip())
+            await message.reply_text("✅ **Shortener API Key Updated Successfully!**")
+            del ADMIN_STATES[user_id]
+            message.stop_propagation()
+
+def get_uptime():
+    uptime_sec = int(time.time() - START_TIME)
+    days, rem = divmod(uptime_sec, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, seconds = divmod(rem, 60)
+    return f"{days}d {hours}h {minutes}m {seconds}s"
+
+@Client.on_message(filters.command("stats") & filters.user(ADMINS))
+async def admin_stats(client, message):
+    m = await message.reply_text("📊 **Fetching Statistics...**")
+    db_stats = await get_db_stats()
+    total_files = await get_total_movies()
+    uptime = get_uptime() # ✅ Uptime fetch kiya
+
+    stats_text = f"""
+**📊 𝐁𝐎𝐓 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐂𝐒 𝐃𝐀𝐒𝐇𝐁𝐎𝐀𝐑𝐃**
+━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️ **𝐁𝐨𝐭 𝐔𝐩𝐭𝐢𝐦𝐞:** `{uptime}`
+
+👥 **𝐔𝐬𝐞𝐫 𝐒𝐭𝐚𝐭𝐢𝐬𝐭𝐢𝐜𝐬:**
+├ 👤 **𝐓𝐨𝐭𝐚𝐥 𝐔𝐬𝐞𝐫𝐬:** `{db_stats['total_users']:,}`
+└ 👥 **𝐓𝐨𝐭𝐚𝐥 𝐆𝐫𝐨𝐮𝐩𝐬:** `{db_stats['total_groups']:,}`
+
+📂 **𝐅𝐢𝐥𝐞 𝐒𝐭𝐚𝐭𝐢𝐬𝐭𝐢𝐜𝐬:**
+└ 🎬 **𝐓𝐨𝐭𝐚𝐥 𝐅𝐢𝐥𝐞𝐬:** `{total_files:,}`
+
+💾 **𝐃𝐚𝐭𝐚𝐛𝐚𝐬𝐞 𝐈𝐧𝐟𝐨𝐫𝐦𝐚𝐭𝐢𝐨𝐧:**
+├ 📦 **𝐃𝐚𝐭𝐚 𝐔𝐬𝐚𝐠𝐞:** `{db_stats['data_mb']} MB`
+└ 📂 **𝐒𝐭𝐨𝐫𝐚𝐠𝐞 𝐒𝐢𝐳𝐞:** `{db_stats['storage_mb']} MB`
+
+━━━━━━━━━━━━━━━━━━━━━━
+"""
+    await m.edit_text(stats_text)
+
+@Client.on_message(filters.command("ban") & filters.user(ADMINS))
+async def ban_handler(client, message):
+    if len(message.command) < 3:
+        return await message.reply_text(
+            "🛡️ **Usage:** `/ban <user_id> <reason>`\n\n"
+            "**Example:** `/ban 123456789 Spamming bot`"
+        )
+
+    try:
+        user_id = int(message.command[1])
+        reason = " ".join(message.command[2:])
+
+        await ban_user(user_id, reason)
+        await message.reply_text(
+            f"✅ **User Restricted Successfully**\n\n"
+            f"**👤 User ID:** `{user_id}`\n"
+            f"**📝 Reason:** {reason}\n"
+            f"**🛡️ Status:** Banned from bot access"
+        )
+    except ValueError:
+        await message.reply_text("❌ **Invalid User ID**\n\nPlease provide a valid numeric user ID.")
+    except Exception as e:
+        await message.reply_text(f"⚠️ **Restriction Failed**\n\nError: {str(e)}")
+
+@Client.on_message(filters.command("unban") & filters.user(ADMINS))
+async def unban_handler(client, message):
+    if len(message.command) < 2:
+        return await message.reply_text(
+            "🛡️ **Usage:** `/unban <user_id>`\n\n"
+            "**Example:** `/unban 123456789`"
+        )
+
+    try:
+        user_id = int(message.command[1])
+        await unban_user(user_id)
+        await message.reply_text(
+            f"✅ **Restriction Removed**\n\n"
+            f"**👤 User ID:** `{user_id}`\n"
+            f"**🔄 Status:** Access restored successfully"
+        )
+    except ValueError:
+        await message.reply_text("❌ **Invalid User ID**\n\nPlease provide a valid numeric user ID.")
+    except Exception as e:
+        await message.reply_text(f"⚠️ **Unban Failed**\n\nError: {str(e)}")
+
+# 🏷️ Group tracker: When bot is added to a group
+@Client.on_message(filters.new_chat_members)
+async def track_groups(client, message):
+    if any(m.is_self for m in message.new_chat_members):
+        from database.users_db import add_group
+        await add_group(message.chat.id, message.chat.title)
+        await client.send_message(
+            message.chat.id,
+            "🎉 **Thanks for adding me!**\n\n"
+            "🎬 **I can search movies here too!**\n"
+            "🔍 **Just type any movie/series name**\n\n"
+            "✨ **Features:**\n"
+            "• Instant file delivery\n"
+            "• Advanced filters\n"
+            "• Group-friendly interface"
+        )
+
+# ⚡ Index Command (Commented for now - Remove if not needed)
+# @Client.on_message(filters.command("index") & filters.user(ADMINS))
+# async def bulk_index_handler(client: Client, message: Message):
+#     """
+#     Usage: /index start_link end_link
+#     Example: /index https://t.me/c/12345678/1 https://t.me/c/12345678/100
+#     """
+#     if len(message.command) < 3:
+#         return await message.reply_text(
+#             "❌ **Invalid Format!**\n\n"
+#             "📌 **Correct Usage:** `/index START_LINK END_LINK`\n\n"
+#             "**Example:**\n"
+#             "`/index https://t.me/c/12345678/1 https://t.me/c/12345678/100`"
+#         )
+#
+#     # ... (rest of your existing index handler code remains the same)
+#     # The commented code has been left intact as requested
+
+@Client.on_message(filters.command("id"))
+async def get_id_handler(client, message):
+    # 1. 🏠 Private Chat Case
+    if message.chat.type == ChatType.PRIVATE:
+        await message.reply_text(
+            f"**🆔 𝐔𝐬𝐞𝐫 𝐈𝐃 𝐈𝐧𝐟𝐨𝐫𝐦𝐚𝐭𝐢𝐨𝐧**\n\n"
+            f"**👤 Your User ID:** `{message.from_user.id}`\n"
+            f"**👤 Username:** @{message.from_user.username or 'Not set'}"
+        )
+
+    # 2. 👥 Group / Supergroup Case
+    elif message.chat.type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+
+        # A. 📝 When replying to a user's message
+        if message.reply_to_message:
+            target_user = message.reply_to_message.from_user
+            if target_user:
+                await message.reply_text(
+                    f"**🆔 𝐔𝐬𝐞𝐫 𝐈𝐃 𝐈𝐧𝐟𝐨𝐫𝐦𝐚𝐭𝐢𝐨𝐧**\n\n"
+                    f"**👤 Target User:** {target_user.mention}\n"
+                    f"**🆔 User ID:** `{target_user.id}`\n"
+                    f"**👥 Group ID:** `{message.chat.id}`\n"
+                    f"**💬 Group Name:** {message.chat.title}"
+                )
+            else:
+                await message.reply_text(
+                    "❌ **Unable to Fetch User ID**\n\n"
+                    "**Possible reasons:**\n"
+                    "• User has hidden profile\n"
+                    "• Message from anonymous admin\n"
+                    "• System/bot message"
+                )
+
+        # B. 🔍 Just /id command without reply
+        else:
+            await message.reply_text(
+                f"**🆔 𝐈𝐃 𝐈𝐧𝐟𝐨𝐫𝐦𝐚𝐭𝐢𝐨𝐧**\n\n"
+                f"**👥 Group Information:**\n"
+                f"**🆔 Group ID:** `{message.chat.id}`\n"
+                f"**💬 Group Name:** {message.chat.title}\n\n"
+                f"**👤 Your Information:**\n"
+                f"**🆔 Your User ID:** `{message.from_user.id}`\n"
+                f"**👤 Username:** @{message.from_user.username or 'Not set'}"
+            )
+
+@Client.on_message(filters.command("dstats") & filters.user(ADMINS))
+async def daily_stats_handler(client, message):
+    # 📅 Today's date
+    today = datetime.now().strftime("%Y-%m-%d")
+    # 📅 Yesterday's date for comparison
+    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # 📊 Fetch statistics
+    s_today = await get_stats_by_date(today) or {"links_generated": 0, "links_verified": 0}
+    s_yesterday = await get_stats_by_date(yesterday) or {"links_generated": 0, "links_verified": 0}
+
+    # 📈 Calculate success percentage
+    def get_success_rate(generated, verified):
+        if generated == 0:
+            return 0.0
+        return round((verified / generated) * 100, 2)
+
+    today_rate = get_success_rate(s_today['links_generated'], s_today['links_verified'])
+    yesterday_rate = get_success_rate(s_yesterday['links_generated'], s_yesterday['links_verified'])
+
+    # 📊 Performance comparison
+    trend = "📈" if s_today['links_verified'] > s_yesterday['links_verified'] else "📉" if s_today['links_verified'] < s_yesterday['links_verified'] else "➡️"
+
+    text = f"""
+**📅 𝐃𝐀𝐈𝐋𝐘 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐂𝐒 𝐑𝐄𝐏𝐎𝐑𝐓**
+━━━━━━━━━━━━━━━━━━━━━━
+
+☀️ **𝐓𝐎𝐃𝐀𝐘 ({today})**
+├ 🔗 **Links Generated:** `{s_today['links_generated']:,}`
+├ ✅ **Links Verified:** `{s_today['links_verified']:,}`
+└ 📊 **Success Rate:** `{today_rate}%`
+
+━━━━━━━━━━━━━━━━━━━━━━
+🌙 **𝐘𝐄𝐒𝐓𝐄𝐑𝐃𝐀𝐘 ({yesterday})**
+├ 🔗 **Links Generated:** `{s_yesterday['links_generated']:,}`
+├ ✅ **Links Verified:** `{s_yesterday['links_verified']:,}`
+└ 📊 **Success Rate:** `{yesterday_rate}%`
+
+━━━━━━━━━━━━━━━━━━━━━━
+📈 **𝐏𝐄𝐑𝐅𝐎𝐑𝐌𝐀𝐍𝐂𝐄 𝐓𝐑𝐄𝐍𝐃**
+├ {trend} **Verification Trend:** {"Up" if trend == "📈" else "Down" if trend == "📉" else "Stable"}
+├ 🔄 **Daily Change:** {s_today['links_verified'] - s_yesterday['links_verified']:,}
+└ 🎯 **Overall Efficiency:** {"Excellent" if today_rate > 80 else "Good" if today_rate > 60 else "Needs Attention"}
+━━━━━━━━━━━━━━━━━━━━━━
+"""
+
+    await message.reply_text(text)
+
+
+@Client.on_message(filters.command("fsub") & filters.user(ADMINS))
+async def fsub_toggle_handler(client, message):
+    """
+    Toggle Force Subscribe feature on/off
+    """
+    from config import FSUB_ENABLED, FSUB_CHANNEL
+
+    if len(message.command) > 1:
+        # /fsub on ya /fsub off
+        action = message.command[1].lower()
+
+        if action in ["on", "yes", "true", "enable"]:
+            # Enable FSUB
+            # Yahan tum apne config ko update karne ka logic add karoge
+            # For example, database mein store karo ya config file update karo
+            await message.reply_text(
+                f"✅ **Force Subscribe ENABLED**\n\n"
+                f"**Channel:** {FSUB_CHANNEL}\n"
+                f"**Status:** Users must join channel to download files"
+            )
+        elif action in ["off", "no", "false", "disable"]:
+            # Disable FSUB
+            await message.reply_text(
+                "✅ **Force Subscribe DISABLED**\n\n"
+                "**Status:** Users can download files without joining channel"
+            )
+        else:
+            await message.reply_text(
+                "⚠️ **Usage:** `/fsub on` or `/fsub off`\n\n"
+                f"**Current Status:** {'ENABLED' if FSUB_ENABLED else 'DISABLED'}"
+            )
+    else:
+        # Show current status
+        await message.reply_text(
+            f"📢 **Force Subscribe Status**\n\n"
+            f"**Enabled:** {'✅ Yes' if FSUB_ENABLED else '❌ No'}\n"
+            f"**Channel:** {FSUB_CHANNEL or 'Not set'}\n\n"
+            f"**Commands:**\n"
+            f"• `/fsub on` - Enable force subscribe\n"
+            f"• `/fsub off` - Disable force subscribe"
+        )
+
+
+================================================================================
+FILE PATH: handlers\cmd_help.py
+================================================================================
+from pyrogram import Client, filters
+from config import ADMINS
+
+@Client.on_message(filters.command("commands"))
+async def help_command_handler(client, message):
+    user_id = message.from_user.id
+    
+    help_text = """**📖 𝐁𝐎𝐓 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒 & 𝐆𝐔𝐈𝐃𝐄**
+━━━━━━━━━━━━━━━━━━━━━━
+
+✨ **𝐔𝐒𝐄𝐑 𝐂𝐎𝐌𝐌𝐀𝐍𝐃𝐒**
+├ 🚀 **/start** – Start the bot & get welcome message
+├ 🆔 **/id** – Get your user ID
+├ 🆔 **/id** (reply) – Get another user's ID
+└ 🔍 **Search** – Just type any movie/series name
+
+🎯 **𝐇𝐎𝐖 𝐓𝐎 𝐒𝐄𝐀𝐑𝐂𝐇:**
+• Type any movie or series name
+• Use filters for better results
+• AI will auto-correct spelling mistakes
+"""
+    
+    if user_id in ADMINS:
+        help_text += """
+🛡️ **𝐀𝐃𝐌𝐈𝐍 𝐂𝐎𝐍𝐓𝐑𝐎𝐋 𝐏𝐀𝐍𝐄𝐋**
+━━━━━━━━━━━━━━━━━━━━━━
+
+📊 **𝐃𝐚𝐭𝐚𝐛𝐚𝐬𝐞 𝐌𝐚𝐧𝐚𝐠𝐞𝐦𝐞𝐧𝐭:**
+├ ⚡ **/index** [StartLink] [EndLink] – Bulk indexing
+├ 📈 **/stats** – View total users, groups & storage
+├ 📊 **/dstats** – Daily traffic & verification stats
+└ 🔄 **/broadcast** – Send message to all users
+
+👥 **𝐔𝐬𝐞𝐫 𝐌𝐚𝐧𝐚𝐠𝐞𝐦𝐞𝐧𝐭:**
+├ ⛔ **/ban** [UserID] [Reason] – Restrict user access
+├ ✅ **/unban** [UserID] – Restore user access
+├ 👀 **/users** – List all registered users
+└ 📋 **/logs** – View system logs
+
+⚙️ **𝐒𝐲𝐬𝐭𝐞𝐦 𝐂𝐨𝐧𝐭𝐫𝐨𝐥:**
+├ 🔧 **/settings** – Bot configuration
+├ 📤 **/export** – Export database backup
+└ 🚫 **/maintenance** – Enable/disable maintenance mode
+
+💡 **𝐏𝐑𝐎 𝐓𝐈𝐏𝐒:**
+• Indexing link order doesn't matter
+• Use batch processing for large channels
+• Monitor stats regularly for insights
+"""
+    else:
+        help_text += """
+🔒 **𝐍𝐎𝐓𝐄:**
+• Admin commands are restricted
+• Contact support for assistance
+• Regular updates ensure best experience
+
+━━━━━━━━━━━━━━━━━━━━━━
+📞 **𝐒𝐔𝐏𝐏𝐎𝐑𝐓:**
+• Report issues via /support
+• Feature requests welcome
+• Community-driven updates
+"""
+
+    await message.reply_text(
+        help_text,
+        disable_web_page_preview=True
+    )
+
+================================================================================
+FILE PATH: handlers\cmd_start.py
+================================================================================
+import uuid
+import asyncio
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from database.users_db import get_user, update_validation, is_validated, check_premium
+from database.movies_db import movies, get_total_movies
+from database.settings_db import get_settings
+from utils.shortener import shorten_url
+from utils.helpers import get_readable_size, auto_delete_messages, clean_file_name, check_fsub_on_demand
+from config import CUSTOM_CAPTION, SEPARATE_NOTE, RESULT_DELETE_TIME
+from bson.objectid import ObjectId
+from database.stats_db import increment_gen, increment_verify
+from datetime import datetime
+
+pending_validations = {}
+
+@Client.on_message(filters.command("start") & filters.private)
+async def start_handler(client: Client, message: Message):
+    if getattr(message, "forward_date", None) or getattr(message, "forward_origin", None):
+        return
+
+    user_id = message.from_user.id
+    text = message.text.split()
+    settings = await get_settings()
+
+    if len(text) > 1 and text[1].startswith("verify_"):
+        token = text[1].split("_")[1]
+
+        if token in pending_validations:
+            today = datetime.now().strftime("%Y-%m-%d")
+            await increment_verify(today)
+            await update_validation(user_id)
+            file_info = pending_validations.pop(token)
+
+            await message.reply_text("**✅ 𝐕𝐞𝐫𝐢𝐟𝐢𝐜𝐚𝐭𝐢𝐨𝐧 𝐂𝐨𝐦𝐩𝐥𝐞𝐭𝐞𝐝!**\n\n**🤖 𝐇𝐮𝐦𝐚𝐧 𝐂𝐨𝐧𝐟𝐢𝐫𝐦𝐞𝐝**\n**⏳ 𝐕𝐚𝐥𝐢𝐝𝐢𝐭𝐲:** Next 6 hours")
+
+            movie = await movies.find_one({"_id": ObjectId(file_info["movie_id"])})
+            if movie:
+                clean_name = clean_file_name(movie['file_name'])
+                caption = CUSTOM_CAPTION.format(filename=clean_name, filesize=get_readable_size(movie["file_size"]))
+
+                sent_file = await client.copy_message(
+                    chat_id=message.chat.id, from_chat_id=movie["chat_id"],
+                    message_id=movie["message_id"], caption=caption
+                )
+                note_msg = await message.reply_text(SEPARATE_NOTE)
+
+                msgs_to_delete = [sent_file, note_msg] # File aur note hamesha delete honge (Copyright safe)
+                if settings.get("auto_delete", True):
+                    msgs_to_delete.append(message) # User ka /start command delete hoga agar True hai
+
+                asyncio.create_task(auto_delete_messages(msgs_to_delete, delay=RESULT_DELETE_TIME))
+            return
+        else:
+            return await message.reply_text("⚠️ **Expired Token!**\n\nThis verification link has expired or is invalid.")
+
+    if len(text) > 1 and text[1].startswith("file_"):
+        movie_id = text[1].split("_")[1]
+        is_joined, error_msg, fsub_link = await check_fsub_on_demand(client, user_id)
+
+        if not is_joined:
+            buttons = []
+            if fsub_link: buttons.append([InlineKeyboardButton("🎯 𝐉𝐎𝐈𝐍 𝐂𝐇𝐀𝐍𝐍𝐄𝐋", url=fsub_link)])
+            buttons.append([InlineKeyboardButton("🔄 𝐂𝐇𝐄𝐂𝐊 𝐀𝐆𝐀𝐈𝐍", callback_data=f"get_{movie_id}")])
+
+            return await message.reply_text(f"**📣 Channel Membership Required!**\n\n{error_msg}", reply_markup=InlineKeyboardMarkup(buttons))
+
+        is_prem = await check_premium(user_id)
+        if is_prem or await is_validated(user_id):
+            movie = await movies.find_one({"_id": ObjectId(movie_id)})
+            if not movie: return await message.reply_text("❌ **File Not Found!**")
+
+            clean_name = clean_file_name(movie['file_name'])
+            caption = CUSTOM_CAPTION.format(filename=clean_name, filesize=get_readable_size(movie["file_size"]))
+
+            await message.reply_text("📤 **Sending File...**")
+            sent_file = await client.copy_message(
+                chat_id=message.chat.id, from_chat_id=movie["chat_id"],
+                message_id=movie["message_id"], caption=caption
+            )
+            note_msg = await message.reply_text(SEPARATE_NOTE)
+
+            if settings.get("auto_delete"):
+                asyncio.create_task(auto_delete_messages([sent_file, note_msg], delay=RESULT_DELETE_TIME))
+        else:
+            bot_info = await client.get_me()
+            v_link = await generate_verify_link(bot_info.username, movie_id)
+            await message.reply_text(
+                "**🛡️ Human Verification Required**\n\n**👉 Click below to verify:**",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ 𝐕𝐄𝐑𝐈𝐅𝐘 𝐍𝐎𝐖", url=v_link)]])
+            )
+        return
+
+    await get_user(user_id)
+    welcome_text = (
+        f"**👋 Welcome, {message.from_user.first_name}!**\n\n"
+        f"**🎬 Movie Delivery Bot**\n"
+        f"**🔍 Start Searching:** Simply type any movie/series name"
+    )
+    await message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 𝐁𝐎𝐓 𝐒𝐓𝐀𝐓𝐒", callback_data="stats_btn"), InlineKeyboardButton("ℹ️ 𝐇𝐄𝐋𝐏", callback_data="help_btn")]
+    ]))
+
+
+@Client.on_callback_query(filters.regex(r"^get_"))
+async def handle_file_button(client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    movie_id = callback.data.split("_")[1]
+    settings = await get_settings()
+
+    is_joined, error_msg, fsub_link = await check_fsub_on_demand(client, user_id)
+    if not is_joined:
+        buttons = []
+        if fsub_link:
+            buttons.append([InlineKeyboardButton("🎯 𝐉𝐎𝐈𝐍 𝐂𝐇𝐀𝐍𝐍𝐄𝐋", url=fsub_link)])
+        buttons.append([InlineKeyboardButton("🔄 𝐂𝐇𝐄𝐂𝐊 𝐀𝐆𝐀𝐈𝐍", callback_data=f"get_{movie_id}")])
+
+        return await callback.message.edit_text(
+            f"**📣 Channel Membership Required!**\n\n{error_msg}",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+
+    is_prem = await check_premium(user_id)
+
+    if not is_prem and not await is_validated(user_id):
+        await callback.answer("🛡️ Verification Required!", show_alert=False)
+        bot_info = await client.get_me()
+        v_link = await generate_verify_link(bot_info.username, movie_id)
+        return await callback.message.reply_text(
+            "**🤖 𝐇𝐮𝐦𝐚𝐧 𝐕𝐞𝐫𝐢𝐟𝐢𝐜𝐚𝐭𝐢𝐨𝐧 𝐑𝐞𝐪𝐮𝐢𝐫𝐞𝐝**",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ 𝐕𝐄𝐑𝐈𝐅𝐘 𝐍𝐎𝐖", url=v_link)]])
+        )
+
+    movie = await movies.find_one({"_id": ObjectId(movie_id)})
+    if not movie:
+        return await callback.answer("❌ 𝐅𝐢𝐥𝐞 𝐍𝐨𝐭 𝐅𝐨𝐮𝐧𝐝!", show_alert=True)
+
+    clean_name = clean_file_name(movie['file_name'])
+    caption = CUSTOM_CAPTION.format(filename=clean_name, filesize=get_readable_size(movie["file_size"]))
+
+    await callback.message.edit_text("📤 **Sending File...**")
+    sent_file = await client.copy_message(
+        chat_id=callback.message.chat.id,
+        from_chat_id=movie["chat_id"],
+        message_id=movie["message_id"],
+        caption=caption
+    )
+    note_msg = await callback.message.reply_text(SEPARATE_NOTE)
+
+    if settings.get("auto_delete"):
+        asyncio.create_task(auto_delete_messages([sent_file, note_msg], delay=RESULT_DELETE_TIME))
+
+    await callback.answer("File sent!", show_alert=False)
+
+
+@Client.on_callback_query(filters.regex("stats_btn"))
+async def stats_btn_handler(client, callback):
+    total = await get_total_movies()
+    await callback.answer(
+        f"📊 Bot Statistics\n\n"
+        f"• Total Files: {total:,}\n"
+        f"• Active Users: Growing daily!\n"
+        f"• Uptime: 99.9%\n\n"
+        f"Database updated regularly!",
+        show_alert=True
+    )
+
+
+@Client.on_callback_query(filters.regex("help_btn"))
+async def help_btn_handler(client, callback):
+    help_text = (
+        "**📖 Bot Help Guide**\n\n"
+        "**🔍 How to Search:**\n"
+        "• Just type any movie/series name\n"
+        "• Use filters for better results\n\n"
+        "**🎯 Available Filters:**\n"
+        "• Language 🌐\n"
+        "• Quality 🎞️\n"
+        "• Year 📅\n"
+        "• Season/Episode 📺\n\n"
+        "**🛡️ Verification:**\n"
+        "• Required every 6 hours\n"
+        "• Protects against bots\n\n"
+        "**❓ Need More Help?**\n"
+        "Contact support if you face issues."
+    )
+    await callback.message.edit_text(
+        help_text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("🔙 𝐁𝐀𝐂𝐊", callback_data="back_to_start")
+        ]])
+    )
+
+
+@Client.on_callback_query(filters.regex("back_to_start"))
+async def back_to_start_handler(client, callback):
+    welcome_text = (
+        f"**👋 Welcome back, {callback.from_user.first_name}!**\n\n"
+        f"**🎬 Ready to search?**\n"
+        f"Just type any movie/series name to begin!"
+    )
+    await callback.message.edit_text(
+        welcome_text,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton("ℹ️ 𝐇𝐄𝐋𝐏", callback_data="help_btn")
+        ]])
+    )
+
+
+async def generate_verify_link(bot_username, movie_id):
+    token = str(uuid.uuid4())[:8]
+    pending_validations[token] = {"movie_id": movie_id}
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    asyncio.create_task(increment_gen(today))
+
+    original_url = f"https://t.me/{bot_username}?start=verify_{token}"
+
+    settings = await get_settings()
+    short_url = await shorten_url(original_url, settings.get("shortener_url"), settings.get("shortener_api"))
+
+    return short_url or original_url
+
+
+================================================================================
+FILE PATH: handlers\index_handler.py
+================================================================================
+# --- handlers/index_handler.py ---
+
+import asyncio
+import re
+import time
+import pytz
+from datetime import datetime, timedelta
+from pyrogram import Client, filters
+from pyrogram.types import Message
+from pyrogram.errors import FloodWait
+from config import ADMINS
+from database.movies_db import movies  # DB Collection
+from pymongo import UpdateOne
+from utils.helpers import clean_file_name
+
+# Timezone setup
+IST = pytz.timezone('Asia/Kolkata')
+
+# Global variable to track indexing process
+INDEXING_ACTIVE = False
+
+@Client.on_message(filters.command("cancel") & filters.user(ADMINS))
+async def cancel_indexing(client: Client, message: Message):
+    global INDEXING_ACTIVE
+    if INDEXING_ACTIVE:
+        INDEXING_ACTIVE = False
+        await message.reply_text("⏹️ **Indexing cancelled successfully!**")
+    else:
+        await message.reply_text("ℹ️ **No active indexing process to cancel.**")
+
+@Client.on_message(filters.command("index") & filters.user(ADMINS))
+async def bulk_index_handler(client: Client, message: Message):
+    global INDEXING_ACTIVE
+    
+    if INDEXING_ACTIVE:
+        return await message.reply_text("⚠️ **Indexing already in progress!**\nUse `/cancel` to stop current process.")
+    
+    if len(message.command) < 3:
+        return await message.reply_text("❌ **Invalid Format!**\n\n📌 **Usage:** `/index START_LINK END_LINK`")
+    
+    def parse_link(link):
+        pattern = r"t.me/(?:c/)?([^/]+)/(\d+)"
+        match = re.search(pattern, link)
+        if match:
+            chat_id = match.group(1)
+            msg_id = int(match.group(2))
+            if chat_id.isdigit():
+                chat_id = int("-100" + chat_id)
+            return chat_id, msg_id
+        return None, None
+    
+    # Extract start and end links
+    s_chat, s_id = parse_link(message.command[1])
+    e_chat, e_id = parse_link(message.command[2])
+    
+    if not s_id or not e_id or s_chat != e_chat:
+        return await message.reply_text("⚠️ **Invalid Links Detected!**\n\nPlease provide valid Telegram message links.")
+    
+    # Start indexing
+    INDEXING_ACTIVE = True
+    
+    start_time = time.time()
+    start_datetime = datetime.now(IST)
+    status_msg = await message.reply_text("⚡ **Starting Lightning Indexer...**\n\n📊 Initializing data processing...")
+    
+    total_fetched = 0
+    saved_count = 0
+    duplicate_count = 0
+    unsupported_count = 0
+    current_id = s_id
+    
+    # Store initial time for ETA calculation
+    last_eta_update_time = start_time
+    last_eta_processed = 0
+    
+    try:
+        while current_id <= e_id and INDEXING_ACTIVE:
+            batch_ids = list(range(current_id, min(current_id + 200, e_id + 1)))
+            
+            try:
+                # Fetch messages in batch
+                msgs = await client.get_messages(s_chat, batch_ids)
+                
+                # Batch duplicate checking optimization
+                batch_filenames = []
+                valid_msgs = []
+                for msg in msgs:
+                    total_fetched += 1
+                    if not msg or msg.empty:
+                        unsupported_count += 1
+                        continue
+                    
+                    file = msg.video or (msg.document if msg.document and "video" in (msg.document.mime_type or "").lower() else None)
+                    if file:
+                        batch_filenames.append(file.file_name or "Unknown_File")
+                        valid_msgs.append((msg, file))
+                    else:
+                        unsupported_count += 1
+                
+                # Check existing files in database
+                existing_files = await movies.find({"file_name": {"$in": batch_filenames}}).to_list(length=len(batch_filenames))
+                existing_names = {f["file_name"] for f in existing_files}
+                
+                bulk_ops = []
+                for msg, file in valid_msgs:
+                    file_name = file.file_name or "Unknown_File"
+                    clean_name = clean_file_name(file_name)
+                    
+                    if file_name in existing_names:
+                        duplicate_count += 1
+                        continue
+                    
+                    bulk_ops.append(
+                        UpdateOne(
+                            {"file_name": file_name},  # Unique identifier
+                            {
+                                "$set": {
+                                    "file_id": file.file_id,
+                                    "file_size": file.file_size,
+                                    "chat_id": s_chat,
+                                    "message_id": msg.id,
+                                    "caption_name": clean_name,  # Clean name for display
+                                }
+                            },
+                            upsert=True,
+                        )
+                    )
+                    saved_count += 1
+                    existing_names.add(file_name)  # Prevent duplicates in current batch
+                
+                if bulk_ops:
+                    await movies.bulk_write(bulk_ops)
+                
+                # Calculate ETA every 1000 messages or at the end
+                current_time = time.time()
+                elapsed_time = current_time - start_time
+                
+                # Update ETA calculation more frequently for better accuracy
+                eta_update_interval = 500  # Update ETA every 500 messages
+                if (total_fetched % eta_update_interval == 0) or (current_id + 200 > e_id):
+                    # Calculate processing speed (messages per second)
+                    if elapsed_time > 0:
+                        processing_speed = total_fetched / elapsed_time
+                        
+                        # Calculate remaining messages
+                        total_messages = e_id - s_id + 1
+                        processed_messages = current_id - s_id
+                        remaining_messages = total_messages - processed_messages
+                        
+                        # Calculate ETA in seconds
+                        if processing_speed > 0:
+                            eta_seconds = remaining_messages / processing_speed
+                            
+                            # Format ETA
+                            if eta_seconds < 60:
+                                eta_str = f"{eta_seconds:.0f} seconds"
+                            elif eta_seconds < 3600:
+                                eta_minutes = eta_seconds / 60
+                                eta_str = f"{eta_minutes:.1f} minutes"
+                            elif eta_seconds < 86400:
+                                eta_hours = eta_seconds / 3600
+                                eta_str = f"{eta_hours:.1f} hours"
+                            else:
+                                eta_days = eta_seconds / 86400
+                                eta_str = f"{eta_days:.1f} days"
+                            
+                            # Calculate predicted completion datetime (in IST)
+                            predicted_completion = datetime.now(IST) + timedelta(seconds=eta_seconds)
+                            predicted_str = predicted_completion.strftime("%d %b %Y, %I:%M %p")
+                        else:
+                            eta_str = "Calculating..."
+                            predicted_str = "Calculating..."
+                    else:
+                        processing_speed = 0
+                        eta_str = "Calculating..."
+                        predicted_str = "Calculating..."
+                
+                # Progress update display
+                if (total_fetched % 1000 == 0) or (current_id + 200 > e_id):
+                    elapsed_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+                    
+                    # Get current datetime in IST
+                    now = datetime.now(IST)
+                    current_datetime_str = now.strftime("%d %b %Y, %I:%M %p")
+                    
+                    # Calculate progress percentage
+                    total_range = e_id - s_id + 1
+                    progress_percent = min(100, (current_id - s_id) / total_range * 100) if total_range > 0 else 0
+                    
+                    # Format the progress message
+                    progress_text = f"""
+**⚡ 𝐋𝐈𝐆𝐇𝐓𝐍𝐈𝐍𝐆 𝐈𝐍𝐃𝐄𝐗𝐄𝐑 — 𝐈𝐍 𝐏𝐑𝐎𝐆𝐑𝐄𝐒𝐒**
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+
+📊 **𝐏𝐑𝐎𝐂𝐄𝐒𝐒𝐈𝐍𝐆 𝐒𝐓𝐀𝐓𝐔𝐒**
+**›› Current ID           :** `{current_id} - {current_id + 200}`
+**›› Total Processed      :** `{total_fetched:,}`
+**›› Saved Files          :** `{saved_count:,}`
+**›› Duplicates           :** `{duplicate_count:,}`
+**›› Unsupported          :** `{unsupported_count:,}`
+
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+📈 **𝐏𝐑𝐎𝐆𝐑𝐄𝐒𝐒 𝐃𝐄𝐓𝐀𝐈𝐋𝐒**
+**›› Progress             :** `{progress_percent:.1f}%`
+**›› Range                :** `{s_id} → {e_id}`
+**›› Remaining            :** `{max(0, e_id - current_id):,}`
+
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+⏰ **𝐓𝐈𝐌𝐄 𝐈𝐍𝐅𝐎𝐑𝐌𝐀𝐓𝐈𝐎𝐍**
+**›› Started At           :** `{start_datetime.strftime('%d %b %Y, %I:%M %p')}`
+**›› Current Time         :** `{current_datetime_str}`
+**›› Elapsed              :** `{elapsed_str}`
+**›› ETA                  :** `{eta_str}`
+**›› Completion           :** `{predicted_str}`
+
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+⚙️ **𝐏𝐄𝐑𝐅𝐎𝐑𝐌𝐀𝐍𝐂𝐄**
+**›› Speed                :** `{processing_speed:.2f} msgs/sec`
+**›› Command              : /cancel**
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+"""
+                    try:
+                        await status_msg.edit_text(progress_text)
+                    except Exception as e:
+                        print(f"Update error: {e}")
+                
+                current_id += 200
+                await asyncio.sleep(0.5)
+            
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+            except Exception as e:
+                print(f"❌ **Processing Error:** {e}")
+                current_id += 200
+        
+        if not INDEXING_ACTIVE:
+            end_time = time.time()
+            total_time = end_time - start_time
+            end_datetime = datetime.now(IST)
+            
+            # Format total time
+            if total_time < 60:
+                time_str = f"{total_time:.2f} seconds"
+            elif total_time < 3600:
+                minutes = int(total_time // 60)
+                seconds = total_time % 60
+                time_str = f"{minutes} minutes {seconds:.2f} seconds"
+            else:
+                hours = int(total_time // 3600)
+                minutes = int((total_time % 3600) // 60)
+                seconds = total_time % 60
+                time_str = f"{hours} hours {minutes} minutes {seconds:.2f} seconds"
+            
+            cancel_message = f"""
+**⏹️ 𝐈𝐍𝐃𝐄𝐗𝐈𝐍𝐆 𝐂𝐀𝐍𝐂𝐄𝐋𝐋𝐄𝐃 𝐁𝐘 𝐔𝐒𝐄𝐑**
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+
+📊 **𝐏𝐀𝐑𝐓𝐈𝐀𝐋 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐂𝐒**
+**›› Last Message ID       :** `{current_id}`
+**›› Total Scanned        :** `{total_fetched:,}`
+**›› New Files Added      :** `{saved_count:,}`
+**›› Duplicates Skipped   :** `{duplicate_count:,}`
+**›› Unsupported Media    :** `{unsupported_count:,}`
+
+⏰ **𝐓𝐈𝐌𝐄 𝐈𝐍𝐅𝐎𝐑𝐌𝐀𝐓𝐈𝐎𝐍**
+**›› Start Time           :** `{start_datetime.strftime('%d %b %Y, %I:%M %p')}`
+**›› Stop Time            :** `{end_datetime.strftime('%d %b %Y, %I:%M %p')}`
+**›› Total Time Taken     :** `{time_str}`
+**›› Duration             :** `{str(end_datetime - start_datetime).split('.')[0]}`
+
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+ℹ️ Indexing stopped by user command."""
+            await status_msg.edit_text(cancel_message)
+            return
+        
+        # Final completion report
+        end_time = time.time()
+        total_time = end_time - start_time
+        end_datetime = datetime.now(IST)
+        
+        # Format total time
+        if total_time < 60:
+            time_str = f"{total_time:.2f} seconds"
+        elif total_time < 3600:
+            minutes = int(total_time // 60)
+            seconds = total_time % 60
+            time_str = f"{minutes} minutes {seconds:.2f} seconds"
+        else:
+            hours = int(total_time // 3600)
+            minutes = int((total_time % 3600) // 60)
+            seconds = total_time % 60
+            time_str = f"{hours} hours {minutes} minutes {seconds:.2f} seconds"
+        
+        speed = total_fetched / total_time if total_time > 0 else 0
+        
+        final_now = datetime.now(IST).strftime("%d %b %Y, %I:%M %p")
+        
+        # Success rate calculation
+        success_rate = (saved_count / total_fetched * 100) if total_fetched > 0 else 0
+        
+        final_message = f"""
+**🏁 𝐈𝐍𝐃𝐄𝐗𝐈𝐍𝐆 𝐂𝐎𝐌𝐏𝐋𝐄𝐓𝐄𝐃 𝐒𝐔𝐂𝐂𝐄𝐒𝐒𝐅𝐔𝐋𝐋𝐘!**
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+
+📊 **𝐅𝐈𝐍𝐀𝐋 𝐒𝐓𝐀𝐓𝐈𝐒𝐓𝐈𝐂𝐒**
+**›› Total Scanned        :** `{total_fetched:,}`
+**›› New Files Added      :** `{saved_count:,}`
+**›› Duplicates Skipped   :** `{duplicate_count:,}`
+**›› Unsupported Media    :** `{unsupported_count:,}`
+
+⏰ **𝐓𝐈𝐌𝐄 𝐈𝐍𝐅𝐎𝐑𝐌𝐀𝐓𝐈𝐎𝐍**
+**›› Start Time           :** `{start_datetime.strftime('%d %b %Y, %I:%M %p')}`
+**›› End Time             :** `{end_datetime.strftime('%d %b %Y, %I:%M %p')}`
+**›› Total Time Taken     :** `{time_str}`
+**›› Duration             :** `{str(end_datetime - start_datetime).split('.')[0]}`
+
+📈 **𝐏𝐄𝐑𝐅𝐎𝐑𝐌𝐀𝐍𝐂𝐄 𝐑𝐄𝐏𝐎𝐑𝐓**
+**›› Success Rate         :** `{success_rate:.2f}%`
+**›› Average Speed        :** `{speed:.2f} msgs/sec`
+**›› Completed On         :** `{final_now}`
+
+**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**
+✨ Database has been successfully updated!"""
+        
+        await status_msg.edit_text(final_message)
+    
+    finally:
+        # Reset indexing flag
+        INDEXING_ACTIVE = False
+
+================================================================================
+FILE PATH: handlers\search_handlers.py
+================================================================================
+from pyrogram import Client, filters
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from database.movies_db import movies, search_movies
+from database.users_db import get_user, is_validated
+from database.settings_db import get_settings
+from utils.helpers import get_readable_size, clean_file_name, is_valid_text, auto_delete_message, auto_delete_messages, check_fsub_on_demand, get_ai_correction
+from config import RESULT_MODE, LANGUAGES, QUALITIES, YEARS, SEASONS, EPISODES
+from config import CUSTOM_CAPTION, SEPARATE_NOTE, RESULT_DELETE_TIME
+from bson.objectid import ObjectId
+from pyrogram.enums import ParseMode, ChatType
+from handlers.cmd_start import generate_verify_link
+import asyncio
+import urllib.parse
+
+@Client.on_message(filters.text & (filters.private | filters.group) & ~filters.bot & ~filters.command(["start", "index", "stats", "ban", "unban", "settings", "fsub", "id"]))
+async def main_search_handler(client: Client, message: Message):
+    chat_type = message.chat.type
+    settings = await get_settings()
+
+    # 1. Banned Content & Spam Filters (Groups) - Sabse pehle ye check hoga!
+    if chat_type in [ChatType.GROUP, ChatType.SUPERGROUP]:
+        is_banned_content = False
+
+        # A. Detect Forwarded Message
+        if getattr(message, "forward_date", None) or getattr(message, "forward_origin", None):
+            is_banned_content = True
+
+        # B. Detect messages sent "As Channel" (Premium feature) ya Anonymous Admin
+        elif message.sender_chat:
+            is_banned_content = True
+
+        # C. Detect Links/Usernames
+        elif not is_valid_text(message.text):
+            is_banned_content = True
+
+        if is_banned_content:
+            if settings.get("delete_banned", True):
+                try: await message.delete()
+                except: pass
+            return
+
+    # 2. Extract User ID safely (Agar upar wale filter se bach gaya par fir bhi user nahi hai toh ignore karo)
+    if not message.from_user:
+        return
+
+    user_id = message.from_user.id
+    user = await get_user(user_id)
+
+    # 3. Ban Check
+    if user.get("is_banned"):
+        return await message.reply_text(f"⛔ **Access Denied!**")
+
+    # 4. PM Search Check from Settings
+    if chat_type == ChatType.PRIVATE and not settings.get("pm_search", True):
+        return await message.reply_text("❌ **PM Search is Disabled!**\n\nPlease join our official group to request and download movies.")
+
+    # 5. Immediate "Searching..." Reply
+    query = message.text
+    temp_msg = await message.reply_text(f"🔍 **Searching for:** `{query}`...")
+
+    # 6. Execute Search
+    sent_msg = await show_results(client, message, query, page=0)
+
+    # 7. Delete the "Searching..." temporary message
+    try:
+        await temp_msg.delete()
+    except:
+        pass
+
+    # 8. Dual Deletion (Delete user msg & results if enabled in Settings)
+    if sent_msg:
+        msgs_to_delete = [sent_msg] # Bot ka result hamesha delete hoga
+
+        if settings.get("auto_delete", True):
+            msgs_to_delete.append(message) # Agar setting True hai, tabhi user ka msg delete hoga
+
+        asyncio.create_task(auto_delete_messages(msgs_to_delete, delay=RESULT_DELETE_TIME))
+
+
+@Client.on_callback_query(filters.regex(r"^get_"))
+async def handle_file_button(client, callback: CallbackQuery):
+    user_id = callback.from_user.id
+    settings = await get_settings()
+
+    is_joined, error_msg, fsub_link = await check_fsub_on_demand(client, user_id)
+
+    if not is_joined:
+        movie_id = callback.data.split("_")[1]
+        buttons = []
+        if fsub_link: buttons.append([InlineKeyboardButton("🎯 𝐉𝐎𝐈𝐍 𝐂𝐇𝐀𝐍𝐍𝐄𝐋", url=fsub_link)])
+        buttons.append([InlineKeyboardButton("🔄 𝐂𝐇𝐄𝐂𝐊 𝐀𝐆𝐀𝐈𝐍", callback_data=f"get_{movie_id}")])
+        return await callback.message.edit_text(f"📣 **Channel Membership Required!**\n\n{error_msg}", reply_markup=InlineKeyboardMarkup(buttons))
+
+    movie_id = callback.data.split("_")[1]
+
+    if not await is_validated(user_id):
+        await callback.answer("🛡️ Verification Required!", show_alert=False)
+        bot_info = await client.get_me()
+        v_link = await generate_verify_link(bot_info.username, movie_id)
+        return await callback.message.reply_text("**🤖 𝐇𝐮𝐦𝐚𝐧 𝐕𝐞𝐫𝐢𝐟𝐢𝐜𝐚𝐭𝐢𝐨𝐧 𝐑𝐞𝐪𝐮𝐢𝐫𝐞𝐝**", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ 𝐕𝐄𝐑𝐈𝐅𝐘 𝐍𝐎𝐖", url=v_link)]]))
+
+    movie = await movies.find_one({"_id": ObjectId(movie_id)})
+    if not movie: return await callback.answer("❌ 𝐅𝐢𝐥𝐞 𝐍𝐨𝐭 𝐅𝐨𝐮𝐧𝐝!", show_alert=True)
+
+    clean_name = clean_file_name(movie['file_name'])
+    caption = CUSTOM_CAPTION.format(filename=clean_name, filesize=get_readable_size(movie["file_size"]))
+
+    await callback.answer("📤 𝐒𝐞𝐧𝐝𝐢𝐧𝐠 𝐅𝐢𝐥𝐞...")
+
+    try:
+        sent_file = await client.copy_message(
+            chat_id=callback.message.chat.id, from_chat_id=movie["chat_id"],
+            message_id=movie["message_id"], caption=caption
+        )
+        # Send Separate Note
+        note_msg = await callback.message.reply_text(SEPARATE_NOTE)
+
+        # Delete if enabled in settings
+        if settings.get("auto_delete", True):
+            asyncio.create_task(auto_delete_messages([sent_file, note_msg], delay=RESULT_DELETE_TIME))
+
+    except Exception as e:
+        print(f"Error sending file: {e}")
+        await callback.message.reply_text("🚨 𝐔𝐩𝐥𝐨𝐚𝐝 𝐄𝐫𝐫𝐨𝐫!")
+
+
+async def show_results(client, message, query, page=0):
+    """
+    🎯 Main function to display search results.
+    Handles both CAPTION and BUTTON modes based on config.
+    """
+    limit = 10
+    skip = page * limit
+
+    # 1. 🔍 INITIAL SEARCH
+    results, total = await search_movies(query, skip=skip, limit=limit)
+
+    original_query = query  # Save original query
+    ai_correction_used = False  # Track AI correction
+
+    # 2. 🤖 AI CORRECTION IF NO RESULTS
+    if not results and page == 0:
+        ai_name = await get_ai_correction(query)
+
+        if ai_name and ai_name.lower() != query.lower():
+            # AI gave correction? Search with corrected name
+            results, total = await search_movies(ai_name, skip=0, limit=10)
+
+            if results:
+                # Results found with AI correction!
+                query = ai_name  # Update query with corrected name
+                ai_correction_used = True
+
+                # Notify user about correction
+                correction_msg = await message.reply_text(f"💡 **Did you mean:** `{ai_name}`?")
+                asyncio.create_task(auto_delete_message(correction_msg, delay=10))
+
+    # 3. 📭 NO RESULTS FOUND (EVEN AFTER AI)
+    if not results:
+        google_query = urllib.parse.quote(query)
+        google_link = f"https://www.google.com/search?q={google_query}"
+
+        not_found_text = f"**🔍 𝐍𝐨 𝐑𝐞𝐬𝐮𝐥𝐭𝐬 𝐅𝐨𝐮𝐧𝐝**\n\n📝 **Searched for:** `{query}`\n\n✨ **Suggestions:**\n• Try different keywords\n• Check spelling\n• Be more specific"
+
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton("🌐 𝐒𝐞𝐚𝐫𝐜𝐡 𝐨𝐧 𝐆𝐨𝐨𝐠𝐥𝐞", url=google_link)]])
+
+        if isinstance(message, CallbackQuery):
+            await message.answer(not_found_text, show_alert=True)
+            return None
+        else:
+            err_msg = await message.reply_text(not_found_text, reply_markup=markup)
+
+            # ✅ FIXED DELETE LOGIC
+            settings = await get_settings()
+            msgs_to_delete = [err_msg] # Bot ka error hamesha delete hoga
+            if settings.get("auto_delete", True):
+                msgs_to_delete.append(message) # User ka query bhi ud jayega agar setting True hai
+
+            asyncio.create_task(auto_delete_messages(msgs_to_delete, delay=120))
+            return None
+
+    # Get bot info for deep linking
+    bot = await client.get_me()
+    keyboard = []
+
+    # 4. 📄 CAPTION MODE (Text List with Clickable Links)
+    if RESULT_MODE == "CAPTION":
+        text = f"<b>📂 𝐒𝐄𝐀𝐑𝐂𝐇 𝐑𝐄𝐒𝐔𝐋𝐓𝐒 ({total} 𝐅𝐢𝐥𝐞𝐬)</b>\n\n"
+        if ai_correction_used:
+            text += f"<b>✨ 𝐒𝐡𝐨𝐰𝐢𝐧𝐠 𝐫𝐞𝐬𝐮𝐥𝐭𝐬 𝐟𝐨𝐫:</b> `{query}`\n<b>📝 𝐎𝐫𝐢𝐠𝐢𝐧𝐚𝐥 𝐬𝐞𝐚𝐫𝐜𝐡:</b> `{original_query}`\n\n"
+        else:
+            text += f"<b>🔎 𝐒𝐞𝐚𝐫𝐜𝐡 𝐐𝐮𝐞𝐫𝐲:</b> `{query}`\n\n"
+
+        text += "<b>📦 𝐀𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞 𝐅𝐢𝐥𝐞𝐬:</b>\n\n"
+
+        for i, movie in enumerate(results, 1):
+            size = get_readable_size(movie['file_size'])
+            clean_name = movie.get('caption_name', "No Name")
+            link = f"https://t.me/{bot.username}?start=file_{movie['_id']}"
+            text += f"{i}. <b><a href='{link}'>📄 {size} | {clean_name}</a></b>\n\n"
+    else:
+        # 🎛️ BUTTON MODE
+        if ai_correction_used:
+            text = f"<b>🎬 𝐑𝐞𝐬𝐮𝐥𝐭𝐬 𝐟𝐨𝐫:</b> `{query}`\n<b>💡 𝐎𝐫𝐢𝐠𝐢𝐧𝐚𝐥 𝐬𝐞𝐚𝐫𝐜𝐡:</b> `{original_query}`\n\n"
+        else:
+            text = f"<b>🎬 𝐒𝐞𝐚𝐫𝐜𝐡 𝐑𝐞𝐬𝐮𝐥𝐭𝐬</b>\n\n<b>🔎 𝐐𝐮𝐞𝐫𝐲:</b> `{query}`\n\n"
+
+        text += "<b>⬇️ 𝐂𝐥𝐢𝐜𝐤 𝐛𝐮𝐭𝐭𝐨𝐧𝐬 𝐛𝐞𝐥𝐨𝐰 𝐭𝐨 𝐠𝐞𝐭 𝐟𝐢𝐥𝐞𝐬 ⬇️</b>"
+
+        for movie in results:
+            size = get_readable_size(movie['file_size'])
+            clean_name = movie.get('caption_name') or clean_file_name(movie.get('file_name', 'Unknown'))
+            keyboard.append([InlineKeyboardButton(f"📁 [{size}] {clean_name}", callback_data=f"get_{movie['_id']}")])
+
+    # 5. 🎚️ FILTER MANAGEMENT
+    query_words = query.split()
+
+    # 🔧 If filters are applied (more than one word)
+    if len(query_words) > 1:
+        filter_rows = [
+            [InlineKeyboardButton("🌐 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄", callback_data=f"list_lang_{query}_{page}")],
+            [InlineKeyboardButton("🎞️ 𝐐𝐔𝐀𝐋𝐈𝐓𝐘", callback_data=f"list_qual_{query}_{page}"),
+             InlineKeyboardButton("📺 𝐒𝐄𝐀𝐒𝐎𝐍", callback_data=f"list_season_{query}_{page}")],
+            [InlineKeyboardButton("📅 𝐘𝐄𝐀𝐑", callback_data=f"list_year_{query}_{page}"),
+             InlineKeyboardButton("🎬 𝐄𝐏𝐈𝐒𝐎𝐃𝐄", callback_data=f"list_ep_{query}_{page}")]
+        ]
+        keyboard.extend(filter_rows)
+
+        # 🔄 RESET FILTER BUTTON - go back to first word
+        original_word = query_words[0]
+        keyboard.append([InlineKeyboardButton("🔄 𝐑𝐄𝐒𝐄𝐓 𝐀𝐋𝐋 𝐅𝐈𝐋𝐓𝐄𝐑𝐒", callback_data=f"page_{original_word}_0")])
+    else:
+        # If no filters applied (single word query), show filter options
+        filter_rows = [
+            [InlineKeyboardButton("🌐 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄", callback_data=f"list_lang_{query}_{page}"),
+            InlineKeyboardButton("🎞️ 𝐐𝐔𝐀𝐋𝐈𝐓𝐘", callback_data=f"list_qual_{query}_{page}")],
+            [InlineKeyboardButton("📅 𝐘𝐄𝐀𝐑", callback_data=f"list_year_{query}_{page}"),
+            InlineKeyboardButton("📺 𝐒𝐄𝐀𝐒𝐎𝐍 / 𝐄𝐏𝐈𝐒𝐎𝐃𝐄", callback_data=f"list_season_{query}_{page}")]
+        ]
+        keyboard.extend(filter_rows)
+
+    # 6. 📄 PAGINATION BUTTONS
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton("◀️ 𝐏𝐑𝐄𝐕", callback_data=f"page_{query}_{page-1}"))
+
+    # Current page indicator
+    nav_buttons.append(InlineKeyboardButton(f"📄 {page+1}/{(total//10)+1}", callback_data="none"))
+
+    if total > (page + 1) * limit:
+        nav_buttons.append(InlineKeyboardButton("𝐍𝐄𝐗𝐓 ▶️", callback_data=f"page_{query}_{page+1}"))
+
+    keyboard.append(nav_buttons)
+
+    # 7. 📤 SEND OR EDIT MESSAGE
+    final_markup = InlineKeyboardMarkup(keyboard)
+
+    try:
+        if isinstance(message, CallbackQuery):
+            return await message.message.edit_text(
+                text,
+                reply_markup=final_markup,
+                disable_web_page_preview=True,
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            return await message.reply_text(
+                text,
+                reply_markup=final_markup,
+                disable_web_page_preview=True,
+                parse_mode=ParseMode.HTML
+            )
+    except Exception as e:
+        print(f"Error updating UI: {e}")
+        return None
+
+@Client.on_callback_query(filters.regex(r"^list_"))
+async def show_filter_options(client, callback: CallbackQuery):
+    data = callback.data.split("_")
+    category, query, page = data[1], data[2], data[3]
+
+    items = []
+    category_names = {
+        "lang": "🌐 Language",
+        "qual": "🎞️ Quality",
+        "year": "📅 Year",
+        "season": "📺 Season",
+        "ep": "🎬 Episode"
+    }
+
+    if category == "lang": items = LANGUAGES
+    elif category == "qual": items = QUALITIES
+    elif category == "year": items = YEARS
+    elif category == "season": items = SEASONS
+    elif category == "ep": items = EPISODES
+
+    buttons = []
+    row = []
+    for item in items:
+        new_query = f"{query} {item}"
+        cb_data = f"page_{new_query}_0"
+        if len(cb_data) > 64: cb_data = f"page_{query[:20]}.._{item}_0"  # Data limit fix
+
+        row.append(InlineKeyboardButton(item, callback_data=cb_data))
+        if len(row) == 3:
+            buttons.append(row)
+            row = []
+    if row: buttons.append(row)
+
+    buttons.append([InlineKeyboardButton("🔙 𝐁𝐀𝐂𝐊", callback_data=f"page_{query}_{page}")])
+
+    await callback.message.edit_text(
+        f"**{category_names.get(category, 'Filter')} 🎯**\n\n**Search:** `{query}`\n\n**Select {category_names.get(category, 'option').lower()}:**",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+@Client.on_callback_query(filters.regex(r"^page_"))
+async def handle_pagination(client, callback: CallbackQuery):
+    data = callback.data.split("_")
+    query, page = data[1], int(data[2])
+    await show_results(client, callback, query, page)
+
+
+================================================================================
+FILE PATH: utils\helpers.py
+================================================================================
+import asyncio
+import re
+from config import AUTO_DELETE_TIME, GROQ_API_KEY
+from pyrogram.enums import ChatMemberStatus
+from groq import Groq
+
+groq_client = Groq(api_key=GROQ_API_KEY)
+
+def get_readable_size(size_bytes):
+    if size_bytes < 1024: return f"{size_bytes} B"
+    elif size_bytes < 1048576: return f"{size_bytes/1024:.2f} KB"
+    elif size_bytes < 1073741824: return f"{size_bytes/1048576:.2f} MB"
+    else: return f"{size_bytes/1073741824:.2f} GB"
+
+async def auto_delete_message(message, delay=AUTO_DELETE_TIME):
+    await asyncio.sleep(delay)
+    try: await message.delete()
+    except: pass
+
+async def auto_delete_messages(messages, delay=AUTO_DELETE_TIME):
+    await asyncio.sleep(delay)
+    for msg in messages:
+        try: await msg.delete()
+        except: pass
+
+async def is_subscribed(client, user_id):
+    from config import ADMINS, FSUB_CHANNEL
+    if user_id in ADMINS: return True
+    if not FSUB_CHANNEL: return True
+
+    try:
+        member = await client.get_chat_member(FSUB_CHANNEL, user_id)
+        if member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:
+            return True
+        return False
+    except:
+        return False
+
+async def check_fsub_on_demand(client, user_id):
+    """
+    New Force Join Logic: Creates a fresh invite link if the user hasn't joined.
+    """
+    from config import ADMINS, FSUB_CHANNEL, FSUB_ENABLED
+
+    if user_id in ADMINS: return True, None, None
+    if not FSUB_ENABLED or not FSUB_CHANNEL: return True, None, None
+
+    try:
+        member = await client.get_chat_member(FSUB_CHANNEL, user_id)
+        if member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:
+            return True, None, None
+        raise Exception("Not member")
+    except Exception:
+        # User not found or not joined, Generate fresh invite link
+        try:
+            link_obj = await client.create_chat_invite_link(chat_id=FSUB_CHANNEL)
+            fsub_link = link_obj.invite_link
+        except Exception:
+            fsub_link = f"https://t.me/{str(FSUB_CHANNEL).replace('-100', 'c/')}"
+
+        error_msg = "❌ **Channel Join Required!**\n\n📢 **Join the channel first to download the file. After joining, click the file button again!**"
+        return False, error_msg, fsub_link
+
+async def get_ai_correction(query):
+    from config import GROQ_MODEL, GROQ_SYSTEM_PROMPT
+    try:
+        completion = groq_client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "system", "content": GROQ_SYSTEM_PROMPT}, {"role": "user", "content": f"Correct this movie title: '{query}'"}],
+            temperature=0.2, max_tokens=50
+        )
+        corrected_name = completion.choices[0].message.content.strip()
+        if corrected_name.lower() != query.lower(): return corrected_name
+        return None
+    except: return None
+
+def clean_file_name(file_name):
+    file_name = re.sub(r"\[.*?\]", "", file_name)
+    file_name = re.sub(r"@[^\s_]+", "", file_name)
+    file_name = file_name.replace("_", " ")
+    file_name = re.sub(r"\.([a-zA-Z])", r" \1", file_name)
+    file_name = re.sub(r"\s+", " ", file_name).strip()
+    return file_name
+
+def is_valid_text(text):
+    if re.search(r"(https?://|t\.me|telegram\.me|@)", text): return False
+    bot_phrases = ["No results found", "Search Results", "Show results for", "Try different keywords"]
+    if any(phrase.lower() in text.lower() for phrase in bot_phrases): return False
+    allowed_pattern = r'^[a-zA-Z0-9\s\u0900-\u097F\U00010000-\U0010ffff.,!?-]+$'
+    if not re.match(allowed_pattern, text): return False
+    return True
+
+
+================================================================================
+FILE PATH: utils\shortener.py
+================================================================================
+import aiohttp
+import urllib.parse
+
+async def shorten_url(original_url, api_url, api_key):
+    """
+    Shorten a URL using dynamic API settings.
+    """
+    if not api_key or api_key == " ":
+        print("❌ ERROR: SHORTENER_API_KEY is missing!")
+        return None
+
+    encoded_url = urllib.parse.quote(original_url)
+    api_endpoint = api_url.replace("/v1/shorten", "") # Clean standard path
+
+    params = {
+        "api": api_key,
+        "url": original_url
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            # First try GET
+            async with session.get(api_endpoint, params=params, timeout=10) as response:
+                res_data = await response.json()
+                if res_data.get("status") == "success" or res_data.get("shortened_url"):
+                    return res_data.get("shortened_url") or res_data.get("link") or res_data.get("url")
+
+            # Fallback to POST
+            headers = {"Authorization": f"Bearer {api_key}"}
+            json_data = {"originalUrl": original_url}
+            async with session.post(api_url, headers=headers, json=json_data, timeout=10) as post_res:
+                post_data = await post_res.json()
+                if post_data.get("success"):
+                    return post_data.get("shortUrl") or post_data.get("shortened_url")
+
+    except Exception as e:
+        print(f"❌ Shortener Error: {str(e)}")
+
+    return None
+

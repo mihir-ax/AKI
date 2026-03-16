@@ -1,13 +1,17 @@
 import os
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
+START_TIME = time.time()
 
 # Bot Credentials
 API_ID = int(os.getenv("API_ID", ""))
 API_HASH = os.getenv("API_HASH", " ")
-BOT_TOKEN = os.getenv("BOT_TOKEN", " ")
 API = "https://auto-caption-bot-qfz4.onrender.com"
+
+bot_token_env = os.getenv("BOT_TOKEN", " ")
+BOT_TOKENS = [t.strip() for t in bot_token_env.split(",") if t.strip()]
 
 # Database
 MONGO_URI = os.getenv("MONGO_URI", " ")
@@ -21,10 +25,10 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", " ")
 ADMINS = [int(id) for id in os.getenv("ADMINS", " ").split(",")]
 FSUB_LINK =  os.getenv("FSUB_LINK", " ")
 FSUB_CHANNEL = os.getenv("FSUB_CHANNEL", " ")
-FSUB_ENABLED = False
+FSUB_ENABLED = True
 
-# Shortener API
-SHORTENER_API_URL = "http://shortxlinks.com/api/v1/shorten"
+# Shortener API (Defaults)
+SHORTENER_API_URL = "http://shortxlinks.com/api"
 SHORTENER_API_KEY = os.getenv("SHORTENER_API_KEY", " ")
 
 # Validation & Security
@@ -32,22 +36,23 @@ VALIDATION_TIME = 6 * 3600  # 6 hours
 AUTO_DELETE_TIME = 600      # 10 minutes (in seconds)
 RESULT_DELETE_TIME = 300    # 5 minutes
 
-# Custom Caption Template (HTML)
+# Custom Caption Template (Note removed from here)
 CUSTOM_CAPTION = """
 <b>🗄️ ꜰɪʟᴇ ɴᴀᴍᴇ:</b> <code>{filename}</code>
 
     <b>🥀 ꜱɪᴢᴇ:</b> <code>{filesize}</code>
-
-<i>⚠️ Note: this will delete in few minutes Save it to your saved messages!</i>
 """
 
+# Alag se bhejne ke liye note
+SEPARATE_NOTE = "<i>⚠️ Note: this will delete in few minutes. Save it to your saved messages!</i>"
+
 # Filter Lists
-RESULT_MODE = "CAPTION"   # CAPTION or BUTTON
+RESULT_MODE = "CAPTION"
 LANGUAGES = ["Hindi", "English", "Punjabi", "Tamil", "Telugu", "Malayalam", "Kannada", "Dual", "Multi"]
 QUALITIES = ["480p", "720p", "1080p", "1440p", "2160p", "4k", "HDRip", "WEB-DL", "BluRay"]
 YEARS = [str(y) for y in range(2026, 1990, -1)]
-SEASONS = [f"S{i:02d}" for i in range(1, 11)] # S01 to S10
-EPISODES = [f"E{i:02d}" for i in range(1, 11)] # E01 to E10
+SEASONS = [f"S{i:02d}" for i in range(1, 11)]
+EPISODES = [f"E{i:02d}" for i in range(1, 11)]
 
 GROQ_SYSTEM_PROMPT = """
 You are a Movie & TV Title Normalization Expert.
