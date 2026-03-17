@@ -4,6 +4,7 @@ from aiohttp import web
 import aiohttp
 import asyncio
 import time
+from config import TARGET_BOTS, ALERIFY_URL
 
 # Basic logging
 logging.basicConfig(level=logging.INFO)
