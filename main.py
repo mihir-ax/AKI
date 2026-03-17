@@ -36,9 +36,9 @@ async def send_alerify_alert(subject: str, tg_msg: str, email_msg: str):
     }
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.post(ALERIFY_URL, json=payload) as resp:
+            async with session.post(ALERIFY_URL, json=payload, timeout=15) as resp:
                 if resp.status == 200:
-                    print(f"✅ Alert Sent: {subject}")
+                    print(f"✅ Alert Sent via Alerify: {subject}")
                 else:
                     print(f"⚠️ Alerify API Failed with status {resp.status}")
     except Exception as e:
@@ -65,7 +65,7 @@ async def send_startup_alert(clients):
 
     if bot_names:
         subject = "🚀 Bots Started Successfully"
-        tg_msg = "<b>Bots are now online!</b>\n\n"
+        tg_msg = "<b>🤖 Bots are now online!</b>\n\n"
         for name in bot_names:
             tg_msg += f"• {name}\n"
         email_msg = f"<h2>Bots Started</h2><p>{', '.join(bot_names)}</p>"
@@ -108,24 +108,26 @@ async def ping_other_bot():
                         # Bot just went DOWN
                         bot_states[url] = False
                         subject = f"🚨 URGENT: {bot_name} is DOWN!"
-                        tg_msg = f"<b>Bot Alert!</b>\n\n❌ <b>{bot_name}</b> respond nahi kar raha.\n🔗 URL: {url}\n⏳ Status: <b>DOWN</b>"
-                        email_msg = f"<h2>Bot Down Alert</h2><p><b>{bot_name}</b> is offline.</p><p>URL: {url}</p>"
+                        tg_msg = f"<b>🚨 Bot Down Alert!</b>\n\n❌ <b>{bot_name}</b> respond nahi kar raha.\n🔗 URL: {url}\n⏳ Status: <b>DOWN</b>"
+                        email_msg = f"<h2>Bot Down Alert</h2><p><b>{bot_name}</b> is offline.</p><p>URL: <a href='{url}'>{url}</a></p>"
                         await send_alerify_alert(subject, tg_msg, email_msg)
 
                     elif is_up and not was_up:
                         # Bot just recovered
                         bot_states[url] = True
                         subject = f"✅ RECOVERED: {bot_name} is UP!"
-                        tg_msg = f"<b>Bot Recovery</b>\n\n✅ <b>{bot_name}</b> wapas online aa gaya!\n🔗 URL: {url}\n⏳ Status: <b>UP</b>"
-                        email_msg = f"<h2>Bot Recovery</h2><p><b>{bot_name}</b> is back online.</p><p>URL: {url}</p>"
+                        tg_msg = f"<b>✅ Bot Recovery Alert!</b>\n\n✅ <b>{bot_name}</b> wapas online aa gaya!\n🔗 URL: {url}\n⏳ Status: <b>UP</b>"
+                        email_msg = f"<h2>Bot Recovery</h2><p><b>{bot_name}</b> is back online.</p><p>URL: <a href='{url}'>{url}</a></p>"
                         await send_alerify_alert(subject, tg_msg, email_msg)
 
-            # Hourly report (every 3600 seconds)
+            # -------------------------------------------------------------------
+            # Hourly report (every 3600 seconds) - ALREADY SENDS TO TG VIA ALERIFY
+            # -------------------------------------------------------------------
             current_time = time.time()
             if current_time - last_hourly_report_time >= 3600:
                 last_hourly_report_time = current_time
 
-                report_tg = "<b>Hourly Bot Status Report 📊</b>\n\n"
+                report_tg = "<b>📊 Hourly Bot Status Report</b>\n\n"
                 report_email = "<h2>Hourly Bot Status Report 📊</h2><ul>"
                 all_good = True
 
@@ -139,10 +141,13 @@ async def ping_other_bot():
 
                 report_email += "</ul>"
                 subject = "🟢 All Systems Nominal" if all_good else "⚠️ System Status Report (Issues Detected)"
+                
+                # Yeh function automatically Alerify API ko Telegram Message (report_tg) bhej dega
                 await send_alerify_alert(subject, report_tg, report_email)
+                print("🕐 Hourly Report sent to Alerify.")
 
         except Exception as e:
-            print(f"Pinger Core Error: {e}")
+            print(f"❌ Pinger Core Error: {e}")
 
         await asyncio.sleep(20)
 
