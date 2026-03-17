@@ -36,7 +36,7 @@ FSUB_ENABLED = False
 
 # Shortener API (Defaults)
 SHORTENER_API_URL = "http://shortxlinks.com/api"
-SHORTENER_API_KEY = os.getenv("SHORTENER_API_KEY", " ")
+SHORTENER_API_KEY = os.getenv("SHORTENER_API_KEY", "46ae73ed25427bac1c44fd96f8c58331ae879703")
 
 # Validation & Security
 VALIDATION_TIME = 6 * 3600  # 6 hours
