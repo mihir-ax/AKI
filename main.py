@@ -120,29 +120,39 @@ async def ping_other_bot():
 # -------------------
 
 async def main():
-    # Database Indexes (Uncomment when using actual DB)
-    # await create_indexes()
-
     print("🚀 Starting Setup...")
     
-    # DUMMY SERVER START
-    app = web.Application()
-    app.router.add_get("/", health_check)
-    runner = web.AppRunner(app)
+    # 1. Start Telegram Client (TUNE YE MISS KIYA THA)
+    # await app.start()  <-- Isko uncomment kar agar 'app' define kiya hai
+    # print("✅ Telegram Bot Started!")
+
+    # 2. Start Web Server
+    web_app = web.Application()
+    web_app.router.add_get("/", health_check)
+    runner = web.AppRunner(web_app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", 8000)
-    await site.start()
-    print("🌐 Health Check Server started on port 8000")
-
-    # PINGER START
-    asyncio.create_task(ping_other_bot())
-
-    # MULTIPLE BOTS START LOGIC...
-    # [Tera baaki ka Client loop code yahan aayega]
     
-    # Is script ko run rakhne ke liye ek infinite loop (agar bots add nahi kiye hain test me)
-    while True:
-        await asyncio.sleep(3600)
+    # Koyeb/Render port handle karne ke liye
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    print(f"🌐 Health Check Server started on port {port}")
+
+    # 3. PINGER START
+    asyncio.create_task(ping_other_bot())
+    print("🔄 Pinger Background Task Started!")
+
+    try:
+        # 4. Yahan pyrogram.idle() use karna hai instead of sleep(3600)
+        from pyrogram import idle
+        await idle()
+    except Exception as e:
+        print(f"⚠️ Error: {e}")
+    finally:
+        print("🛑 Shutting down...")
+        # await app.stop() <-- Isko uncomment kar
+        await runner.cleanup()
 
 if __name__ == "__main__":
     asyncio.run(main())
