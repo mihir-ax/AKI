@@ -218,7 +218,32 @@ async def generate_verify_link(bot_username, movie_id):
 
     original_url = f"https://t.me/{bot_username}?start=verify_{token}"
 
-    settings = await get_settings()
-    short_url = await shorten_url(original_url, settings.get("shortener_url"), settings.get("shortener_api"))
+    try:
+        settings = await get_settings()
+        
+        # 1. Pehle Database se settings nikalne ki koshish karega
+        s_url = settings.get("shortener_url")
+        s_api = settings.get("shortener_api")
 
-    return short_url or original_url
+        # 2. Agar database me set nahi hai, toh config.py se utha lega
+        if not s_url or not s_api:
+            try:
+                from config import SHORTENER_API_URL, SHORTENER_API_KEY
+                s_url = SHORTENER_API_URL
+                s_api = SHORTENER_API_KEY
+            except ImportError:
+                pass # Agar config me bhi nahi hai toh aage badho
+
+        # 3. Agar URL aur API dono mil gaye, toh link chhota karega
+        if s_url and s_api:
+            short_url = await shorten_url(original_url, s_url, s_api)
+            if short_url:
+                # API kabhi-kabhi space de deti hai, usko clean kar dega warna button fail hoga
+                return short_url.strip() 
+
+    except Exception as e:
+        print(f"⚠️ Link Generation Error: {e}")
+
+    # 4. Fallback: Agar shortener fail ho gaya ya API galat hai, 
+    # toh button gayab nahi hoga, seedha direct bot ka link de dega!
+    return original_url
