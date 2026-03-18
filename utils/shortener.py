@@ -21,7 +21,7 @@ async def shorten_url(original_url, api_url, api_key):
     params = {
         "api_key": api_key,
         "url": original_url,
-        "mode": "multipages",
+        "mode": "direct",             #multipages / direct
         "num_pages": "2"
     }
 
