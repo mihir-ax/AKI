@@ -35,8 +35,11 @@ FSUB_CHANNEL = os.getenv("FSUB_CHANNEL", " ")
 FSUB_ENABLED = False
 
 # Shortener API (Defaults)
-SHORTENER_API_URL = "http://shortxlinks.com/api"
-SHORTENER_API_KEY = os.getenv("SHORTENER_API_KEY", "46ae73ed25427bac1c44fd96f8c58331ae879703")
+# SHORTENER_API_URL = "http://shortxlinks.com/api"
+# SHORTENER_API_KEY = os.getenv("SHORTENER_API_KEY", "46ae73ed25427bac1c44fd96f8c58331ae879703")
+
+SHORTENER_API_URL = "https://www.svms.in/api/developer/shorten"
+SHORTENER_API_KEY = os.getenv("SHORTENER_API_KEY", "svms_Tc5akoI-RZ2bPXCAaQ14rtIP")
 
 # Validation & Security
 VALIDATION_TIME = 6 * 3600  # 6 hours
