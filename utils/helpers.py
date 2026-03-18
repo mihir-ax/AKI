@@ -46,26 +46,48 @@ async def is_subscribed(client, user_id):
 async def check_fsub_on_demand(client, user_id):
     """
     New Force Join Logic: Creates a fresh invite link if the user hasn't joined.
+    Automatically handles string/integer channel IDs and proper fallbacks.
     """
-    from config import ADMINS, FSUB_CHANNEL, FSUB_ENABLED
+    from config import ADMINS, FSUB_CHANNEL, FSUB_ENABLED, FSUB_LINK
+    from pyrogram.enums import ChatMemberStatus
 
     if user_id in ADMINS: return True, None, None
     if not FSUB_ENABLED or not FSUB_CHANNEL: return True, None, None
 
+    chat_id = FSUB_CHANNEL
+    if isinstance(chat_id, str):
+        chat_id = chat_id.strip()
+        if chat_id.lstrip('-').isdigit():
+            chat_id = int(chat_id)
+
     try:
-        member = await client.get_chat_member(FSUB_CHANNEL, user_id)
+        member = await client.get_chat_member(chat_id, user_id)
+
         if member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]:
             return True, None, None
-        raise Exception("Not member")
-    except Exception:
-        # User not found or not joined, Generate fresh invite link
+
+        raise Exception("User not joined")
+
+    except Exception as e:
+        fsub_link = None
+
         try:
-            link_obj = await client.create_chat_invite_link(chat_id=FSUB_CHANNEL)
+            link_obj = await client.create_chat_invite_link(chat_id=chat_id)
             fsub_link = link_obj.invite_link
-        except Exception:
-            fsub_link = f"https://t.me/{str(FSUB_CHANNEL).replace('-100', 'c/')}"
+        except Exception as e2:
+            print(f"⚠️ Failed to create invite link: {e2}")
+
+            if FSUB_LINK and FSUB_LINK.strip().startswith("http"):
+                fsub_link = FSUB_LINK.strip()
+
+            elif isinstance(chat_id, str) and chat_id.startswith("@"):
+                fsub_link = f"https://t.me/{chat_id.replace('@', '')}"
+
+            else:
+                fsub_link = "https://t.me/telegram"
 
         error_msg = "❌ **Channel Join Required!**\n\n📢 **Join the channel first to download the file. After joining, click the file button again!**"
+
         return False, error_msg, fsub_link
 
 async def get_ai_correction(query):
