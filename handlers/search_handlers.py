@@ -11,25 +11,27 @@ from pyrogram.enums import ParseMode, ChatType
 from handlers.cmd_start import generate_verify_link
 import asyncio
 import urllib.parse
+import re # <-- New import for query cleaning
+
+# 🛠️ HELPER FUNCTION: To make search Solid
+def clean_search_query(query):
+    """Faltu special characters aur extra spaces hatane ke liye"""
+    query = query.lower().strip()
+    query = re.sub(r"[@_+\-.,:;()\[\]{}!?]", " ", query) # Remove special chars
+    query = re.sub(r"\s+", " ", query).strip() # Remove extra spaces
+    return query
 
 @Client.on_message(filters.text & (filters.private | filters.group) & ~filters.bot & ~filters.command(["start", "index", "stats", "ban", "unban", "settings", "fsub", "id"]))
 async def main_search_handler(client: Client, message: Message):
     chat_type = message.chat.type
     settings = await get_settings()
 
-    # 1. Banned Content & Spam Filters (Groups) - Sabse pehle ye check hoga!
     if chat_type in [ChatType.GROUP, ChatType.SUPERGROUP]:
         is_banned_content = False
-
-        # A. Detect Forwarded Message
         if getattr(message, "forward_date", None) or getattr(message, "forward_origin", None):
             is_banned_content = True
-
-        # B. Detect messages sent "As Channel" (Premium feature) ya Anonymous Admin
         elif message.sender_chat:
             is_banned_content = True
-
-        # C. Detect Links/Usernames
         elif not is_valid_text(message.text):
             is_banned_content = True
 
@@ -39,41 +41,35 @@ async def main_search_handler(client: Client, message: Message):
                 except: pass
             return
 
-    # 2. Extract User ID safely (Agar upar wale filter se bach gaya par fir bhi user nahi hai toh ignore karo)
-    if not message.from_user:
-        return
+    if not message.from_user: return
 
     user_id = message.from_user.id
     user = await get_user(user_id)
 
-    # 3. Ban Check
     if user.get("is_banned"):
         return await message.reply_text(f"⛔ **Access Denied!**")
 
-    # 4. PM Search Check from Settings
     if chat_type == ChatType.PRIVATE and not settings.get("pm_search", True):
         return await message.reply_text("❌ **PM Search is Disabled!**\n\nPlease join our official group to request and download movies.")
 
-    # 5. Immediate "Searching..." Reply
-    query = message.text
-    temp_msg = await message.reply_text(f"🔍 **Searching for:** `{query}`...")
+    # 🔍 QUERY CLEANING APPLIED HERE
+    raw_query = message.text
+    clean_query = clean_search_query(raw_query)
+    
+    if len(clean_query) < 2:
+        return await message.reply_text("⚠️ **Please type at least 2 characters to search!**")
 
-    # 6. Execute Search
-    sent_msg = await show_results(client, message, query, page=0)
+    temp_msg = await message.reply_text(f"🔍 **Searching for:** `{raw_query}`...")
 
-    # 7. Delete the "Searching..." temporary message
-    try:
-        await temp_msg.delete()
-    except:
-        pass
+    sent_msg = await show_results(client, message, clean_query, page=0)
 
-    # 8. Dual Deletion (Delete user msg & results if enabled in Settings)
+    try: await temp_msg.delete()
+    except: pass
+
     if sent_msg:
-        msgs_to_delete = [sent_msg] # Bot ka result hamesha delete hoga
-
+        msgs_to_delete = [sent_msg]
         if settings.get("auto_delete", True):
-            msgs_to_delete.append(message) # Agar setting True hai, tabhi user ka msg delete hoga
-
+            msgs_to_delete.append(message)
         asyncio.create_task(auto_delete_messages(client, message.chat.id, msgs_to_delete, delay=RESULT_DELETE_TIME))
 
 
@@ -115,55 +111,36 @@ async def handle_file_button(client, callback: CallbackQuery):
             chat_id=callback.message.chat.id, from_chat_id=movie["chat_id"],
             message_id=movie["message_id"], caption=caption
         )
-        # Send Separate Note
         note_msg = await callback.message.reply_text(SEPARATE_NOTE)
-
-        # Bot ka file and note HAMESHA delete hoga. Isliye if condition hata di hai.
         asyncio.create_task(auto_delete_messages(client, callback.message.chat.id, [sent_file, note_msg], delay=RESULT_DELETE_TIME))
-
     except Exception as e:
         print(f"Error sending file: {e}")
         await callback.message.reply_text("🚨 𝐔𝐩𝐥𝐨𝐚𝐝 𝐄𝐫𝐫𝐨𝐫!")
 
 
 async def show_results(client, message, query, page=0):
-    """
-    🎯 Main function to display search results.
-    Handles both CAPTION and BUTTON modes based on config.
-    """
     limit = 10
     skip = page * limit
 
-    # 1. 🔍 INITIAL SEARCH
     results, total = await search_movies(query, skip=skip, limit=limit)
+    original_query = query
+    ai_correction_used = False
 
-    original_query = query  # Save original query
-    ai_correction_used = False  # Track AI correction
-
-    # 2. 🤖 AI CORRECTION IF NO RESULTS
     if not results and page == 0:
         ai_name = await get_ai_correction(query)
-
         if ai_name and ai_name.lower() != query.lower():
-            # AI gave correction? Search with corrected name
-            results, total = await search_movies(ai_name, skip=0, limit=10)
-
+            ai_clean_query = clean_search_query(ai_name) # Clean AI query too
+            results, total = await search_movies(ai_clean_query, skip=0, limit=10)
             if results:
-                # Results found with AI correction!
-                query = ai_name  # Update query with corrected name
+                query = ai_clean_query
                 ai_correction_used = True
-
-                # Notify user about correction
                 correction_msg = await message.reply_text(f"💡 **Did you mean:** `{ai_name}`?")
                 asyncio.create_task(auto_delete_message(client, message.chat.id, correction_msg, delay=10))
 
-    # 3. 📭 NO RESULTS FOUND (EVEN AFTER AI)
     if not results:
         google_query = urllib.parse.quote(query)
         google_link = f"https://www.google.com/search?q={google_query}"
-
         not_found_text = f"**🔍 𝐍𝐨 𝐑𝐞𝐬𝐮𝐥𝐭𝐬 𝐅𝐨𝐮𝐧𝐝**\n\n📝 **Searched for:** `{query}`\n\n✨ **Suggestions:**\n• Try different keywords\n• Check spelling\n• Be more specific"
-
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("🌐 𝐒𝐞𝐚𝐫𝐜𝐡 𝐨𝐧 𝐆𝐨𝐨𝐠𝐥𝐞", url=google_link)]])
 
         if isinstance(message, CallbackQuery):
@@ -171,42 +148,30 @@ async def show_results(client, message, query, page=0):
             return None
         else:
             err_msg = await message.reply_text(not_found_text, reply_markup=markup)
-
-            # ✅ FIXED DELETE LOGIC
             settings = await get_settings()
-            msgs_to_delete = [err_msg] # Bot ka error hamesha delete hoga
+            msgs_to_delete = [err_msg]
             if settings.get("auto_delete", True):
-                msgs_to_delete.append(message) # User ka query bhi ud jayega agar setting True hai
-
+                msgs_to_delete.append(message)
             asyncio.create_task(auto_delete_messages(client, message.chat.id, msgs_to_delete, delay=120))
             return None
 
-    # Get bot info for deep linking
     bot = await client.get_me()
     keyboard = []
 
-    # 4. 📄 CAPTION MODE (Text List with Clickable Links)
     if RESULT_MODE == "CAPTION":
         text = f"<b>📂 𝐒𝐄𝐀𝐑𝐂𝐇 𝐑𝐄𝐒𝐔𝐋𝐓𝐒 ({total} 𝐅𝐢𝐥𝐞𝐬)</b>\n\n"
-        if ai_correction_used:
-            text += f"<b>✨ 𝐒𝐡𝐨𝐰𝐢𝐧𝐠 𝐫𝐞𝐬𝐮𝐥𝐭𝐬 𝐟𝐨𝐫:</b> `{query}`\n<b>📝 𝐎𝐫𝐢𝐠𝐢𝐧𝐚𝐥 𝐬𝐞𝐚𝐫𝐜𝐡:</b> `{original_query}`\n\n"
-        else:
-            text += f"<b>🔎 𝐒𝐞𝐚𝐫𝐜𝐡 𝐐𝐮𝐞𝐫𝐲:</b> `{query}`\n\n"
-
+        if ai_correction_used: text += f"<b>✨ 𝐒𝐡𝐨𝐰𝐢𝐧𝐠 𝐫𝐞𝐬𝐮𝐥𝐭𝐬 𝐟𝐨𝐫:</b> `{query}`\n<b>📝 𝐎𝐫𝐢𝐠𝐢𝐧𝐚𝐥 𝐬𝐞𝐚𝐫𝐜𝐡:</b> `{original_query}`\n\n"
+        else: text += f"<b>🔎 𝐒𝐞𝐚𝐫𝐜𝐡 𝐐𝐮𝐞𝐫𝐲:</b> `{query}`\n\n"
         text += "<b>📦 𝐀𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞 𝐅𝐢𝐥𝐞𝐬:</b>\n\n"
 
         for i, movie in enumerate(results, 1):
             size = get_readable_size(movie['file_size'])
-            clean_name = movie.get('caption_name', "No Name")
+            clean_name = movie.get('caption_name') or clean_file_name(movie.get('file_name', 'Unknown'))
             link = f"https://t.me/{bot.username}?start=file_{movie['_id']}"
             text += f"{i}. <b><a href='{link}'>📄 {size} | {clean_name}</a></b>\n\n"
     else:
-        # 🎛️ BUTTON MODE
-        if ai_correction_used:
-            text = f"<b>🎬 𝐑𝐞𝐬𝐮𝐥𝐭𝐬 𝐟𝐨𝐫:</b> `{query}`\n<b>💡 𝐎𝐫𝐢𝐠𝐢𝐧𝐚𝐥 𝐬𝐞𝐚𝐫𝐜𝐡:</b> `{original_query}`\n\n"
-        else:
-            text = f"<b>🎬 𝐒𝐞𝐚𝐫𝐜𝐡 𝐑𝐞𝐬𝐮𝐥𝐭𝐬</b>\n\n<b>🔎 𝐐𝐮𝐞𝐫𝐲:</b> `{query}`\n\n"
-
+        if ai_correction_used: text = f"<b>🎬 𝐑𝐞𝐬𝐮𝐥𝐭𝐬 𝐟𝐨𝐫:</b> `{query}`\n<b>💡 𝐎𝐫𝐢𝐠𝐢𝐧𝐚𝐥 𝐬𝐞𝐚𝐫𝐜𝐡:</b> `{original_query}`\n\n"
+        else: text = f"<b>🎬 𝐒𝐞𝐚𝐫𝐜𝐡 𝐑𝐞𝐬𝐮𝐥𝐭𝐬</b>\n\n<b>🔎 𝐐𝐮𝐞𝐫𝐲:</b> `{query}`\n\n"
         text += "<b>⬇️ 𝐂𝐥𝐢𝐜𝐤 𝐛𝐮𝐭𝐭𝐨𝐧𝐬 𝐛𝐞𝐥𝐨𝐰 𝐭𝐨 𝐠𝐞𝐭 𝐟𝐢𝐥𝐞𝐬 ⬇️</b>"
 
         for movie in results:
@@ -214,64 +179,41 @@ async def show_results(client, message, query, page=0):
             clean_name = movie.get('caption_name') or clean_file_name(movie.get('file_name', 'Unknown'))
             keyboard.append([InlineKeyboardButton(f"📁 [{size}] {clean_name}", callback_data=f"get_{movie['_id']}")])
 
-    # 5. 🎚️ FILTER MANAGEMENT
     query_words = query.split()
+    # Safely truncate query for Callback Data to prevent 64-Byte Crash
+    safe_query = query[:25] 
 
-    # 🔧 If filters are applied (more than one word)
     if len(query_words) > 1:
         filter_rows = [
-            [InlineKeyboardButton("🌐 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄", callback_data=f"list_lang_{query}_{page}")],
-            [InlineKeyboardButton("🎞️ 𝐐𝐔𝐀𝐋𝐈𝐓𝐘", callback_data=f"list_qual_{query}_{page}"),
-             InlineKeyboardButton("📺 𝐒𝐄𝐀𝐒𝐎𝐍", callback_data=f"list_season_{query}_{page}")],
-            [InlineKeyboardButton("📅 𝐘𝐄𝐀𝐑", callback_data=f"list_year_{query}_{page}"),
-             InlineKeyboardButton("🎬 𝐄𝐏𝐈𝐒𝐎𝐃𝐄", callback_data=f"list_ep_{query}_{page}")]
+            [InlineKeyboardButton("🌐 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄", callback_data=f"list_lang_{safe_query}_{page}")],
+            [InlineKeyboardButton("🎞️ 𝐐𝐔𝐀𝐋𝐈𝐓𝐘", callback_data=f"list_qual_{safe_query}_{page}"),
+             InlineKeyboardButton("📺 𝐒𝐄𝐀𝐒𝐎𝐍", callback_data=f"list_season_{safe_query}_{page}")],
+            [InlineKeyboardButton("📅 𝐘𝐄𝐀𝐑", callback_data=f"list_year_{safe_query}_{page}"),
+             InlineKeyboardButton("🎬 𝐄𝐏𝐈𝐒𝐎𝐃𝐄", callback_data=f"list_ep_{safe_query}_{page}")]
         ]
         keyboard.extend(filter_rows)
-
-        # 🔄 RESET FILTER BUTTON - go back to first word
-        original_word = query_words[0]
+        original_word = query_words[0][:25]
         keyboard.append([InlineKeyboardButton("🔄 𝐑𝐄𝐒𝐄𝐓 𝐀𝐋𝐋 𝐅𝐈𝐋𝐓𝐄𝐑𝐒", callback_data=f"page_{original_word}_0")])
     else:
-        # If no filters applied (single word query), show filter options
         filter_rows = [
-            [InlineKeyboardButton("🌐 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄", callback_data=f"list_lang_{query}_{page}"),
-            InlineKeyboardButton("🎞️ 𝐐𝐔𝐀𝐋𝐈𝐓𝐘", callback_data=f"list_qual_{query}_{page}")],
-            [InlineKeyboardButton("📅 𝐘𝐄𝐀𝐑", callback_data=f"list_year_{query}_{page}"),
-            InlineKeyboardButton("📺 𝐒𝐄𝐀𝐒𝐎𝐍 / 𝐄𝐏𝐈𝐒𝐎𝐃𝐄", callback_data=f"list_season_{query}_{page}")]
+            [InlineKeyboardButton("🌐 𝐋𝐀𝐍𝐆𝐔𝐀𝐆𝐄", callback_data=f"list_lang_{safe_query}_{page}"),
+            InlineKeyboardButton("🎞️ 𝐐𝐔𝐀𝐋𝐈𝐓𝐘", callback_data=f"list_qual_{safe_query}_{page}")],
+            [InlineKeyboardButton("📅 𝐘𝐄𝐀𝐑", callback_data=f"list_year_{safe_query}_{page}"),
+            InlineKeyboardButton("📺 𝐒𝐄𝐀𝐒𝐎𝐍 / 𝐄𝐏𝐈𝐒𝐎𝐃𝐄", callback_data=f"list_season_{safe_query}_{page}")]
         ]
         keyboard.extend(filter_rows)
 
-    # 6. 📄 PAGINATION BUTTONS
     nav_buttons = []
-    if page > 0:
-        nav_buttons.append(InlineKeyboardButton("◀️ 𝐏𝐑𝐄𝐕", callback_data=f"page_{query}_{page-1}"))
-
-    # Current page indicator
+    if page > 0: nav_buttons.append(InlineKeyboardButton("◀️ 𝐏𝐑𝐄𝐕", callback_data=f"page_{safe_query}_{page-1}"))
     nav_buttons.append(InlineKeyboardButton(f"📄 {page+1}/{(total//10)+1}", callback_data="none"))
-
-    if total > (page + 1) * limit:
-        nav_buttons.append(InlineKeyboardButton("𝐍𝐄𝐗𝐓 ▶️", callback_data=f"page_{query}_{page+1}"))
-
+    if total > (page + 1) * limit: nav_buttons.append(InlineKeyboardButton("𝐍𝐄𝐗𝐓 ▶️", callback_data=f"page_{safe_query}_{page+1}"))
     keyboard.append(nav_buttons)
 
-    # 7. 📤 SEND OR EDIT MESSAGE
     final_markup = InlineKeyboardMarkup(keyboard)
 
     try:
-        if isinstance(message, CallbackQuery):
-            return await message.message.edit_text(
-                text,
-                reply_markup=final_markup,
-                disable_web_page_preview=True,
-                parse_mode=ParseMode.HTML
-            )
-        else:
-            return await message.reply_text(
-                text,
-                reply_markup=final_markup,
-                disable_web_page_preview=True,
-                parse_mode=ParseMode.HTML
-            )
+        if isinstance(message, CallbackQuery): return await message.message.edit_text(text, reply_markup=final_markup, disable_web_page_preview=True, parse_mode=ParseMode.HTML)
+        else: return await message.reply_text(text, reply_markup=final_markup, disable_web_page_preview=True, parse_mode=ParseMode.HTML)
     except Exception as e:
         print(f"Error updating UI: {e}")
         return None
@@ -282,13 +224,7 @@ async def show_filter_options(client, callback: CallbackQuery):
     category, query, page = data[1], data[2], data[3]
 
     items = []
-    category_names = {
-        "lang": "🌐 Language",
-        "qual": "🎞️ Quality",
-        "year": "📅 Year",
-        "season": "📺 Season",
-        "ep": "🎬 Episode"
-    }
+    category_names = {"lang": "🌐 Language", "qual": "🎞️ Quality", "year": "📅 Year", "season": "📺 Season", "ep": "🎬 Episode"}
 
     if category == "lang": items = LANGUAGES
     elif category == "qual": items = QUALITIES
@@ -300,15 +236,13 @@ async def show_filter_options(client, callback: CallbackQuery):
     row = []
     for item in items:
         new_query = f"{query} {item}"
-        cb_data = f"page_{new_query}_0"
-        if len(cb_data) > 64: cb_data = f"page_{query[:20]}.._{item}_0"  # Data limit fix
-
+        # Telegram Callback 64-byte limit fix
+        cb_data = f"page_{new_query[:30]}_0" 
         row.append(InlineKeyboardButton(item, callback_data=cb_data))
         if len(row) == 3:
             buttons.append(row)
             row = []
     if row: buttons.append(row)
-
     buttons.append([InlineKeyboardButton("🔙 𝐁𝐀𝐂𝐊", callback_data=f"page_{query}_{page}")])
 
     await callback.message.edit_text(
@@ -319,5 +253,7 @@ async def show_filter_options(client, callback: CallbackQuery):
 @Client.on_callback_query(filters.regex(r"^page_"))
 async def handle_pagination(client, callback: CallbackQuery):
     data = callback.data.split("_")
-    query, page = data[1], int(data[2])
+    # Join in case query had underscores
+    query = "_".join(data[1:-1]) 
+    page = int(data[-1])
     await show_results(client, callback, query, page)
