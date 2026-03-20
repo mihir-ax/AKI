@@ -9,9 +9,15 @@ movies = db.movies
 
 # --- 1. OPTIMIZED INDEXES ---
 async def create_indexes():
-    # DeepSeek Fix: Removed useless indexes, kept only what matters
+    try:
+        # Puraane conflicting indexes ko delete karega
+        await movies.drop_indexes()
+    except Exception as e:
+        pass # Koi error aaye toh ignore karo
+        
+    # Ab naya SuperFast Text Index properly create hoga
     await movies.create_index([("file_name", "text"), ("caption_name", "text")])
-    print("✅ MongoDB Indexes Initialized!")
+    print("✅ MongoDB Indexes Initialized Successfully!")
 
 async def add_movie(file_id, file_name, file_size, chat_id, message_id, caption_name):
     await movies.update_one(
@@ -30,56 +36,44 @@ async def add_movie(file_id, file_name, file_size, chat_id, message_id, caption_
 def extract_smart_metadata(query):
     query = query.lower()
     
-    # KACHRA SAFFAI (Telegram watermarks, dots, underscores ko space banao)
-    # Brahmastra.part.1 ya Brahmastra_part_1 ban jayega -> "brahmastra part 1"
     clean_query = re.sub(r'[\.\_\-\[\]\(\)\@\{\}\:\,\!]', ' ', query)
     clean_query = re.sub(r'\s+', ' ', clean_query).strip()
 
     meta = {'season': None, 'episode': None, 'qualities': [], 'title_words': []}
     
-    # Extract Season (S01, Season 1)
     s_match = re.search(r'\b(?:s|season)\s*0?(\d+)\b', clean_query)
     if s_match:
         meta['season'] = s_match.group(1)
         clean_query = re.sub(r'\b(?:s|season)\s*0?\d+\b', '', clean_query)
         
-    # Extract Episode (E05, Ep 5)
     e_match = re.search(r'\b(?:e|ep|episode)\s*0?(\d+)\b', clean_query)
     if e_match:
         meta['episode'] = e_match.group(1)
         clean_query = re.sub(r'\b(?:e|ep|episode)\s*0?\d+\b', '', clean_query)
         
-    # Extract Qualities
     qs = ['hevc', 'hdtc', 'hdcam', 'hdrip', 'webrip', 'web-dl', 'bluray', '1080p', '720p', '480p', '2160p', '4k', 'hindi', 'dual']
     for q in qs:
         if re.search(fr'\b{q}\b', clean_query):
             meta['qualities'].append(q)
             clean_query = re.sub(fr'\b{q}\b', '', clean_query)
 
-    # Bacha hua title ke words (e.g., ['brahmastra', 'part', '1'])
     meta['title_words'] = [w for w in clean_query.split() if w.strip()]
     
     return meta
-
 
 # 🚀 HYBRID SEARCH ENGINE (Text + Regex Fallback)
 async def search_movies(query_str, skip=0, limit=10):
     meta = extract_smart_metadata(query_str)
     
-    # DYNAMIC SORTING
     is_series = bool(meta['season'] or meta['episode'])
     sort_order = [("file_name", 1)] if is_series else [("_id", -1)]
 
-    # ==========================================
-    # PHASE 1: MONGODB TEXT SEARCH (High Speed)
-    # Quotes `"word"` lagane se AND search hota hai
-    # ==========================================
+    # PHASE 1: MONGODB TEXT SEARCH
     all_words = meta['title_words'] + meta['qualities']
-    if meta['season']: all_words.append(f"s{meta['season']:0>2}") # s01 format
-    if meta['episode']: all_words.append(f"e{meta['episode']:0>2}") # e05 format
+    if meta['season']: all_words.append(f"s{meta['season']:0>2}")
+    if meta['episode']: all_words.append(f"e{meta['episode']:0>2}")
 
     if all_words:
-        # Puts quotes around each word: '"brahmastra" "part" "1"'
         text_search_str = " ".join([f'"{w}"' for w in all_words])
         text_query = {"$text": {"$search": text_search_str}}
         
@@ -92,23 +86,17 @@ async def search_movies(query_str, skip=0, limit=10):
             }).sort([("score", {"$meta": "textScore"})] + sort_order).skip(skip).limit(limit)
             return await cursor.to_list(length=limit), total_text
 
-    # ==========================================
     # PHASE 2: TELEGRAM REALITY FALLBACK (Regex)
-    # Agar [xyz]brahmastra_part.1.mkv jaisa kachra naam hai, toh Text Index fail hoga.
-    # Yaha humara Brahmastra Regex filter kaam aayega!
-    # ==========================================
-    
     fallback_levels = [
-        {'q': meta['qualities'], 's': meta['season'], 'e': meta['episode']}, # Full exact match
-        {'q': [], 's': meta['season'], 'e': meta['episode']},                # Drop quality (4K/1080p)
-        {'q': [], 's': meta['season'], 'e': None},                           # Drop episode (E05)
-        {'q': [], 's': None, 'e': None}                                      # Just Title words
+        {'q': meta['qualities'], 's': meta['season'], 'e': meta['episode']}, 
+        {'q': [], 's': meta['season'], 'e': meta['episode']},                
+        {'q': [], 's': meta['season'], 'e': None},                           
+        {'q': [], 's': None, 'e': None}                                      
     ]
 
     for level in fallback_levels:
         regex_conditions = []
         
-        # 1. Add Title Words (brahmastra, part, 1)
         for w in meta['title_words']:
             regex_conditions.append({
                 "$or": [
@@ -117,7 +105,6 @@ async def search_movies(query_str, skip=0, limit=10):
                 ]
             })
             
-        # 2. Add Season/Episode intelligently
         if level['s']:
             s_pat = fr"(s|season)[\s\.\_\-\[\]]*0?{level['s']}"
             regex_conditions.append({"$or": [{"file_name": {"$regex": s_pat, "$options": "i"}}, {"caption_name": {"$regex": s_pat, "$options": "i"}}]})
@@ -125,7 +112,6 @@ async def search_movies(query_str, skip=0, limit=10):
             e_pat = fr"(e|ep|episode)[\s\.\_\-\[\]]*0?{level['e']}"
             regex_conditions.append({"$or": [{"file_name": {"$regex": e_pat, "$options": "i"}}, {"caption_name": {"$regex": e_pat, "$options": "i"}}]})
             
-        # 3. Add Qualities
         for q in level['q']:
             regex_conditions.append({"$or": [{"file_name": {"$regex": re.escape(q), "$options": "i"}}, {"caption_name": {"$regex": re.escape(q), "$options": "i"}}]})
             
