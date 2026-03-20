@@ -16,6 +16,8 @@ from config import (
     START_TIME,
 )
 
+from database.movies_db import create_indexes  
+
 # Basic logging
 logging.basicConfig(level=logging.INFO)
 
@@ -48,7 +50,6 @@ async def send_alerify_alert(subject: str, tg_msg: str, email_msg: str):
 # Startup Alert (new bots ke liye)
 # -------------------------------------------------------------------
 async def send_startup_alert(clients):
-    """Sabhi bots ke start hone ke baad ek alert bhejta hai"""
     if not clients:
         return
 
@@ -57,7 +58,6 @@ async def send_startup_alert(clients):
         try:
             me = client.me
             if me:
-                # Bot ka naam/username nikaalo
                 name = me.mention if hasattr(me, 'mention') else f"@{me.username}" if me.username else me.first_name
                 bot_names.append(name)
         except Exception as e:
@@ -85,7 +85,6 @@ async def check_url(session, url):
 # Pinger Task (monitors TARGET_BOTS)
 # -------------------------------------------------------------------
 async def ping_other_bot():
-    """Har 20 second mein TARGET_BOTS ko ping karega, down/up alerts aur hourly report bhejega."""
     if not TARGET_BOTS:
         print("⚠️ TARGET_BOTS empty hai. Pinger start nahi hua.")
         return
@@ -105,7 +104,6 @@ async def ping_other_bot():
                     was_up = bot_states[url]
 
                     if not is_up and was_up:
-                        # Bot just went DOWN
                         bot_states[url] = False
                         subject = f"🚨 URGENT: {bot_name} is DOWN!"
                         tg_msg = f"<b>🚨 Bot Down Alert!</b>\n\n❌ <b>{bot_name}</b> respond nahi kar raha.\n🔗 URL: {url}\n⏳ Status: <b>DOWN</b>"
@@ -113,16 +111,12 @@ async def ping_other_bot():
                         await send_alerify_alert(subject, tg_msg, email_msg)
 
                     elif is_up and not was_up:
-                        # Bot just recovered
                         bot_states[url] = True
                         subject = f"✅ RECOVERED: {bot_name} is UP!"
                         tg_msg = f"<b>✅ Bot Recovery Alert!</b>\n\n✅ <b>{bot_name}</b> wapas online aa gaya!\n🔗 URL: {url}\n⏳ Status: <b>UP</b>"
                         email_msg = f"<h2>Bot Recovery</h2><p><b>{bot_name}</b> is back online.</p><p>URL: <a href='{url}'>{url}</a></p>"
                         await send_alerify_alert(subject, tg_msg, email_msg)
 
-            # -------------------------------------------------------------------
-            # Hourly report (every 3600 seconds) - ALREADY SENDS TO TG VIA ALERIFY
-            # -------------------------------------------------------------------
             current_time = time.time()
             if current_time - last_hourly_report_time >= 3600:
                 last_hourly_report_time = current_time
@@ -142,7 +136,6 @@ async def ping_other_bot():
                 report_email += "</ul>"
                 subject = "🟢 All Systems Nominal" if all_good else "⚠️ System Status Report (Issues Detected)"
                 
-                # Yeh function automatically Alerify API ko Telegram Message (report_tg) bhej dega
                 await send_alerify_alert(subject, report_tg, report_email)
                 print("🕐 Hourly Report sent to Alerify.")
 
@@ -157,7 +150,10 @@ async def ping_other_bot():
 async def main():
     print("🚀 Starting Movie Bots...")
 
-    # 1. Create Pyrogram clients from BOT_TOKENS (plugins from "handlers" folder)
+    print("🛠️ Initializing Database Optimized Indexes...")
+    await create_indexes()
+
+    # 1. Create Pyrogram clients from BOT_TOKENS
     if not BOT_TOKENS:
         print("❌ No BOT_TOKENS provided. Exiting.")
         return
@@ -165,16 +161,16 @@ async def main():
     clients = []
     for idx, token in enumerate(BOT_TOKENS, start=1):
         client = Client(
-            name=f"MovieBot_{idx}",          # session name
+            name=f"MovieBot_{idx}",
             api_id=API_ID,
             api_hash=API_HASH,
             bot_token=token,
-            plugins=dict(root="handlers")    # all handlers are inside "handlers" folder
+            plugins=dict(root="handlers")
         )
         clients.append(client)
         print(f"🤖 Bot {idx} configured with plugins.")
 
-    # 2. Start web server (health check)
+    # 2. Start web server
     web_app = web.Application()
     web_app.router.add_get("/", health_check)
     runner = web.AppRunner(web_app)
@@ -184,16 +180,15 @@ async def main():
     await site.start()
     print(f"🌐 Health Check Server running on port {port}")
 
-    # 3. Start all bots (manually, so we can send startup alert)
+    # 3. Start all bots
     print("🔄 Starting all bots...")
     try:
         await asyncio.gather(*(client.start() for client in clients))
         print("✅ All bots started successfully.")
     except Exception as e:
         print(f"❌ Error starting bots: {e}")
-        # Still continue with whatever clients started
 
-    # 4. Send startup alert (using bot names)
+    # 4. Send startup alert
     await send_startup_alert(clients)
 
     # 5. Start Pinger background task
@@ -214,5 +209,4 @@ async def main():
     print("✅ Cleanup done. Goodbye!")
 
 if __name__ == "__main__":
-    # Use asyncio.run() to avoid loop conflicts
     asyncio.run(main())
