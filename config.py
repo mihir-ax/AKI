@@ -11,7 +11,8 @@ API_HASH = os.getenv("API_HASH", " ")
 API = "https://auto-caption-bot-qfz4.onrender.com, https://rook-gh81.onrender.com"
 TARGET_BOTS = {
     "https://auto-caption-bot-qfz4.onrender.com": "CAPTION BOT",
-    "https://rook-gh81.onrender.com": "RoOk BOT"
+    "https://exotic-vin-msgal-c459e164.koyeb.app": "RoOk BOT",
+    
 }
 
 # Tera Alerify API URL
